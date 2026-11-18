@@ -108,3 +108,35 @@ $help = [
     I log contengono l'XML completo di richieste e risposte: valuta quanto storico ti serve per contestazioni con il Registro
     o con i clienti prima di scendere sotto qualche mese.</p>
 </form>
+
+<form method="post" action="<?= url('settings') ?>" class="card" style="max-width:860px" id="security">
+  <?= csrf_field() ?><input type="hidden" name="section" value="security">
+  <h2>Sicurezza</h2>
+  <label>IP abilitati all'accesso alla piattaforma</label>
+  <textarea name="allowed_ips" placeholder="vuoto = accesso da qualsiasi IP&#10;192.0.2.10&#10;198.51.100.0/24&#10;2001:db8::/32"><?= h(implode("\n", security()->allowedIps())) ?></textarea>
+  <p class="help">Uno per riga: IPv4, IPv6 o reti in notazione CIDR. Se la lista è vuota accedono tutti.
+    Il tuo IP attuale è <code><?= h(client_ip()) ?></code>: deve essere nella lista, altrimenti il salvataggio viene rifiutato.
+    Non si applica agli script da riga di comando. Se resti chiuso fuori: <code>php bin/security-reset-ips.php</code>.</p>
+  <div class="grid g2" style="gap:0 16px">
+  <?php foreach (\NicEpp\App\Security::FIELDS as $k => [$label, $def, $min, $max]):
+      $cur = settings()->get("sec.$k"); ?>
+    <div>
+      <label><?= h($label) ?></label>
+      <input type="text" name="<?= $k ?>" inputmode="numeric" value="<?= h($cur ?? '') ?>" placeholder="predefinito: <?= $def ?>">
+      <p class="help"><?= [
+        'idle_timeout' => 'Senza attività per questo tempo l\'utente viene disconnesso. 0 = mai. Predefinito 1800 (30 minuti).',
+        'max_session' => 'Dopo questo tempo dal login bisogna rientrare comunque. 0 = senza limite. Predefinito 43200 (12 ore).',
+        'min_password' => 'Vale per nuovi utenti e cambi password. Predefinito 10.',
+        'fail_window' => 'Periodo in cui si contano i tentativi falliti (password o codice 2FA). Predefinito 900 (15 minuti).',
+        'fail_per_ip' => 'Oltre questo numero di errori nella finestra l\'IP viene bloccato per tutti gli utenti. Predefinito 20.',
+        'fail_per_user_ip' => 'Oltre questo numero di errori per lo stesso utente dallo stesso IP l\'accesso viene bloccato. Predefinito 5.',
+        'remember_days' => 'Dopo il codice 2FA si può spuntare «ricorda questo computer»: per questi giorni basta la password. 0 = funzione disattivata (e computer già ricordati revocati).',
+      ][$k] ?></p>
+    </div>
+  <?php endforeach; ?>
+  </div>
+  <p class="help">Campo vuoto = valore predefinito. I valori attivi in questo momento: inattività <?= security()->get('idle_timeout') ?> s,
+    sessione max <?= security()->get('max_session') ?> s, password min <?= min_password() ?>, finestra <?= security()->get('fail_window') ?> s,
+    <?= security()->get('fail_per_ip') ?> errori per IP, <?= security()->get('fail_per_user_ip') ?> per utente e IP, ricorda computer <?= security()->get('remember_days') ?> giorni.</p>
+  <p><button>Salva sicurezza</button></p>
+</form>

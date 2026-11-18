@@ -15,6 +15,7 @@ Pensato per uso interno dello staff del registrar.
 - **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata. Retention in giorni impostabile in Configurazione (i più vecchi vengono cancellati in automatico).
 - **Console XML** (solo admin): invia XML arbitrario sulla sessione autenticata.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
+- **Sicurezza** in Configurazione: IP abilitati, scadenza della sessione per inattività e durata massima, lunghezza minima password, limiti ai tentativi falliti per IP e per utente+IP, «ricorda questo computer» dopo il 2FA.
 - **Doppio fattore obbligatorio** (TOTP con QR code) per ogni utente, con codici di recupero e reset da parte di un admin.
 - **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
 - **Elenchi domini e contatti ordinabili** cliccando sulle intestazioni di colonna.
@@ -102,6 +103,28 @@ Un eventuale `storage/epp-password` continua a essere letto finché non salvi un
 - Telefono perso: un admin usa «Azzera» in Utenti. Se è l'unico admin ad averlo perso: `sudo -u UTENTE_PHP php bin/reset-2fa.php username`.
 
 **Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/003_2fa.sql`.
+
+### Sicurezza
+
+In Configurazione → Sicurezza (campo vuoto = valore predefinito):
+
+| Impostazione | Predefinito |
+|---|---|
+| IP abilitati (IPv4/IPv6/CIDR, uno per riga) | vuoto = tutti |
+| Disconnessione dopo inattività | 1800 s (0 = mai) |
+| Durata massima sessione | 43200 s (0 = senza limite) |
+| Lunghezza minima password | 10 |
+| Finestra tentativi falliti | 900 s |
+| Tentativi falliti per IP | 20 |
+| Tentativi falliti per utente e IP | 5 |
+| Ricorda il computer dopo il 2FA | 0 giorni (disattivato) |
+
+- Contano come tentativi falliti sia le password sbagliate sia i codici 2FA errati; un accesso riuscito azzera il conteggio di quell'utente da quell'IP.
+- La lista IP non può essere salvata se esclude l'IP da cui la stai salvando. Se resti chiuso fuori: `sudo -u UTENTE_PHP php bin/security-reset-ips.php`.
+- L'IP considerato è `REMOTE_ADDR`: dietro un reverse proxy (es. nginx davanti ad Apache su Plesk) il web server deve passare l'IP reale (mod_remoteip / real_ip).
+- I computer ricordati usano un cookie HttpOnly con token casuale (salvato come hash); si revocano da Account, e vengono revocati al cambio password, all'azzeramento del 2FA e mettendo a 0 i giorni.
+
+**Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/004_security.sql`.
 
 ### Importare i domini esistenti
 

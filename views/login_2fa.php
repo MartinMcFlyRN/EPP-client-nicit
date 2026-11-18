@@ -5,6 +5,10 @@
     <?= csrf_field() ?>
     <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus required
            maxlength="11" placeholder="123456" style="font-size:22px;letter-spacing:4px;text-align:center">
+    <?php if ($remember > 0): ?>
+      <label style="font-weight:400"><input type="checkbox" name="remember" value="1"> Ricorda questo computer per <?= (int)$remember ?> giorni</label>
+      <p class="help" style="margin-top:0">Non spuntarlo su computer condivisi.</p>
+    <?php endif; ?>
     <p><button>Verifica</button></p>
   </form>
   <p class="help">Telefono non disponibile? Inserisci uno dei codici di recupero (formato XXXXX-XXXXX): ognuno vale una sola volta.

@@ -15,6 +15,39 @@ header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 
+// IP abilitati (Configurazione → Sicurezza): lista vuota = tutti
+try {
+    $allowed = security()->allowedIps();
+} catch (\Throwable $e) {
+    $allowed = []; // DB non ancora migrato
+}
+if (!\NicEpp\App\Security::ipMatches(client_ip(), $allowed)) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Accesso non consentito da questo indirizzo IP (' . client_ip() . ').');
+}
+
+// scadenza della sessione per inattività e durata massima
+if (!empty($_SESSION['uid'])) {
+    $now = time();
+    $_SESSION['login_at'] ??= $now;
+    $idle = security()->get('idle_timeout');
+    $max = security()->get('max_session');
+    $why = null;
+    if ($idle > 0 && $now - (int)($_SESSION['seen_at'] ?? $now) > $idle) {
+        $why = 'Sei stato disconnesso per inattività';
+    } elseif ($max > 0 && $now - (int)$_SESSION['login_at'] > $max) {
+        $why = 'La sessione ha raggiunto la durata massima: rientra';
+    }
+    if ($why) {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        flash('err', $why);
+        redirect('login');
+    }
+    $_SESSION['seen_at'] = $now;
+}
+
 $routes = require APP_ROOT . '/src/routes.php';
 $r = (string)($_GET['r'] ?? 'dashboard');
 

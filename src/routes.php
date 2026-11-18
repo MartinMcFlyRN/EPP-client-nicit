@@ -67,16 +67,28 @@ return [
 
     'login' => function () {
         if (is_post()) {
-            $u = repo()->userByName(in('username'));
+            $name = in('username');
+            $ip = client_ip();
+            security()->purgeFailures();
+            if (($wait = security()->blockedFor($ip, $name)) > 0) {
+                flash('err', 'Troppi tentativi di accesso falliti: riprova tra ' . wait_text($wait));
+                redirect('login');
+            }
+            $u = repo()->userByName($name);
             if ($u && $u['active'] && password_verify((string)($_POST['password'] ?? ''), $u['pass_hash'])) {
                 session_regenerate_id(true);
                 unset($_SESSION['uid'], $_SESSION['setup_secret']);
+                // computer ricordato dopo un 2FA precedente: si entra senza codice
+                if ($u['totp_enabled_at'] && security()->deviceTrusted((int)$u['id'], (string)($_COOKIE[\NicEpp\App\Security::COOKIE] ?? ''))) {
+                    finish_login($u);
+                }
                 // primo fattore superato: l'accesso si completa solo dopo il secondo
                 $_SESSION['pre_uid'] = (int)$u['id'];
                 $_SESSION['pre_at'] = time();
                 $_SESSION['pre_tries'] = 0;
                 redirect($u['totp_enabled_at'] ? 'login/2fa' : 'login/setup');
             }
+            security()->recordFailure($ip, $name, 'password');
             usleep(500000);
             flash('err', 'Credenziali non valide');
             redirect('login');
@@ -112,12 +124,16 @@ return [
                 }
             }
             if ($ok) {
+                if (in('remember') === '1' && security()->get('remember_days') > 0) {
+                    [$val, $exp] = security()->trustDevice((int)$u['id'], client_ip(), (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+                    set_trust_cookie($val, $exp);
+                }
                 finish_login($u);
             }
             second_factor_failed();
             redirect('login/2fa');
         }
-        render('login_2fa', ['bare' => true, 'u' => $u]);
+        render('login_2fa', ['bare' => true, 'u' => $u, 'remember' => security()->get('remember_days')]);
     },
 
     'login/setup' => function () {
@@ -155,6 +171,11 @@ return [
 
     'account' => function () {
         $u = current_user();
+        if (is_post() && in('revoke') !== '') {
+            in('revoke') === 'all' ? security()->revokeAllDevices((int)$u['id']) : security()->revokeDevice((int)$u['id'], (int)in('revoke'));
+            flash('ok', in('revoke') === 'all' ? 'Tutti i computer ricordati sono stati revocati' : 'Computer revocato');
+            redirect('account');
+        }
         if (is_post()) {
             $step = \NicEpp\App\Totp::verify(settings()->decrypt((string)$u['totp_secret']), (string)($_POST['code'] ?? ''), (int)$u['totp_last_step']);
             if ($step === null) {
@@ -163,11 +184,12 @@ return [
             repo()->setTotpStep((int)$u['id'], $step);
             if (in('action') === 'password') {
                 $pw = (string)($_POST['new_pw'] ?? '');
-                if (strlen($pw) < 10 || $pw !== (string)($_POST['new_pw2'] ?? '')) {
-                    throw new InvalidArgumentException('Password di almeno 10 caratteri e uguale nei due campi');
+                if (strlen($pw) < min_password() || $pw !== (string)($_POST['new_pw2'] ?? '')) {
+                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri e uguale nei due campi');
                 }
                 repo()->updateUser((int)$u['id'], $u['role'], (bool)$u['active'], $pw);
-                flash('ok', 'Password cambiata');
+                security()->revokeAllDevices((int)$u['id']);
+                flash('ok', 'Password cambiata (i computer ricordati sono stati revocati)');
                 redirect('account');
             }
             $codes = \NicEpp\App\Totp::recoveryCodes();
@@ -176,7 +198,8 @@ return [
             $_SESSION['show_recovery'] = $codes;
             redirect('account/recovery');
         }
-        render('account', ['u' => $u, 'left' => count(json_decode((string)$u['recovery_codes'], true) ?: [])]);
+        render('account', ['u' => $u, 'left' => count(json_decode((string)$u['recovery_codes'], true) ?: []),
+            'devices' => security()->devices((int)$u['id']), 'remember' => security()->get('remember_days')]);
     },
 
     'logout' => function () {
@@ -238,6 +261,38 @@ return [
 
     'settings' => function () {
         require_role('admin');
+        if (is_post() && in('section') === 'security') {
+            $by = current_user()['username'];
+            $ips = \NicEpp\App\Security::parseIpList(in('allowed_ips'));
+            if ($ips && !\NicEpp\App\Security::ipMatches(client_ip(), $ips)) {
+                throw new InvalidArgumentException('Il tuo IP attuale (' . client_ip() . ') non è nella lista: aggiungilo, altrimenti verresti chiuso fuori');
+            }
+            $vals = [];
+            foreach (\NicEpp\App\Security::FIELDS as $k => [$label, $def, $min, $max]) {
+                $v = in($k);
+                if ($v === '') {
+                    $vals[$k] = null; // torna al valore predefinito
+                    continue;
+                }
+                if (!ctype_digit($v) || (int)$v < $min || (int)$v > $max) {
+                    throw new InvalidArgumentException("«{$label}»: inserisci un numero tra $min e $max");
+                }
+                $vals[$k] = (string)(int)$v;
+            }
+            $idle = (int)($vals['idle_timeout'] ?? \NicEpp\App\Security::FIELDS['idle_timeout'][1]);
+            if ($idle > 0 && $idle < 60) {
+                throw new InvalidArgumentException('Disconnessione per inattività: almeno 60 secondi (o 0 per disattivarla)');
+            }
+            settings()->set('sec.allowed_ips', implode("\n", $ips), $by);
+            foreach ($vals as $k => $v) {
+                settings()->set("sec.$k", $v, $by);
+            }
+            if (($vals['remember_days'] ?? null) === '0') {
+                db()->exec('DELETE FROM trusted_devices'); // funzione disattivata: revoca tutti i computer ricordati
+            }
+            flash('ok', 'Impostazioni di sicurezza salvate');
+            redirect('settings');
+        }
         if (is_post() && in('section') === 'logs') {
             $days = in('retention_days');
             if ($days !== '' && (!ctype_digit($days) || (int)$days < 1 || (int)$days > 3650)) {
@@ -848,6 +903,7 @@ return [
         if (is_post()) {
             if (in('reset_2fa') !== '') {
                 repo()->resetTotp((int)in('reset_2fa'));
+                security()->revokeAllDevices((int)in('reset_2fa'));
                 flash('ok', 'Doppio fattore azzerato: l\'utente dovrà configurarlo di nuovo al prossimo accesso');
                 redirect('users');
             }
@@ -855,11 +911,17 @@ return [
                 throw new InvalidArgumentException('Ruolo non valido');
             }
             if (in('id') !== '') {
+                if (($_POST['password'] ?? '') !== '' && strlen((string)$_POST['password']) < min_password()) {
+                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri');
+                }
                 repo()->updateUser((int)in('id'), in('role'), in('active') === '1', $_POST['password'] ?: null);
+                if (($_POST['password'] ?? '') !== '' || in('active') !== '1') {
+                    security()->revokeAllDevices((int)in('id'));
+                }
                 flash('ok', 'Utente aggiornato');
             } else {
-                if (strlen((string)$_POST['password']) < 10) {
-                    throw new InvalidArgumentException('Password di almeno 10 caratteri');
+                if (strlen((string)$_POST['password']) < min_password()) {
+                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri');
                 }
                 repo()->createUser(in('username'), (string)$_POST['password'], in('role'));
                 flash('ok', 'Utente creato');

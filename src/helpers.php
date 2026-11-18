@@ -262,13 +262,24 @@ function finish_login(array $u, string $to = 'dashboard'): never
     session_regenerate_id(true);
     unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries']);
     $_SESSION['uid'] = (int)$u['id'];
+    $_SESSION['login_at'] = $_SESSION['seen_at'] = time();
+    security()->clearFailures(client_ip(), $u['username']);
     repo()->touchLogin((int)$u['id']);
     redirect($to);
 }
 
-/** Dopo 5 codici errati si torna alla password. */
+/** Dopo 5 codici errati si torna alla password; ogni errore conta anche nei limiti di Sicurezza. */
 function second_factor_failed(string $msg = 'Codice non valido'): void
 {
+    $u = repo()->userById((int)($_SESSION['pre_uid'] ?? 0));
+    if ($u) {
+        security()->recordFailure(client_ip(), $u['username'], '2fa');
+        if (($wait = security()->blockedFor(client_ip(), $u['username'])) > 0) {
+            unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
+            flash('err', 'Troppi tentativi falliti: riprova tra ' . wait_text($wait));
+            redirect('login');
+        }
+    }
     usleep(500000);
     $_SESSION['pre_tries'] = (int)($_SESSION['pre_tries'] ?? 0) + 1;
     if ($_SESSION['pre_tries'] >= 5) {
@@ -385,4 +396,37 @@ function purge_logs_if_due(bool $force = false): ?int
     }
     @file_put_contents($f, (string)time());
     return repo()->purgeLogs($days);
+}
+
+// ---------------------------------------------------------------- sicurezza
+
+function security(): \NicEpp\App\Security
+{
+    static $s = null;
+    return $s ??= new \NicEpp\App\Security(db(), settings());
+}
+
+/** IP del client. Dietro un reverse proxy assicurati che il web server imposti REMOTE_ADDR all'IP reale. */
+function client_ip(): string
+{
+    return (string)($_SERVER['REMOTE_ADDR'] ?? '');
+}
+
+function min_password(): int
+{
+    return security()->get('min_password');
+}
+
+function wait_text(int $s): string
+{
+    return $s >= 120 ? ceil($s / 60) . ' minuti' : $s . ' secondi';
+}
+
+/** Cookie "ricorda questo computer" (HttpOnly, SameSite Strict, Secure se HTTPS). */
+function set_trust_cookie(string $value, int $expires): void
+{
+    setcookie(\NicEpp\App\Security::COOKIE, $value, [
+        'expires' => $expires, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    ]);
 }

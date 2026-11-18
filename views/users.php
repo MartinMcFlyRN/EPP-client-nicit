@@ -25,7 +25,7 @@
   <?= csrf_field() ?>
   <h2>Nuovo utente</h2>
   <label>Utente</label><input type="text" name="username" required>
-  <label>Password (min 10)</label><input type="password" name="password" required minlength="10">
+  <label>Password (min <?= min_password() ?>)</label><input type="password" name="password" required minlength="<?= min_password() ?>">
   <label>Ruolo</label><select name="role"><option>operator</option><option>readonly</option><option>admin</option></select>
   <p class="help">readonly: check/info/log. operator: tutte le operazioni EPP. admin: anche console XML, utenti e cambio password EPP. Il doppio fattore è obbligatorio: ogni utente lo configura al primo accesso.</p>
   <p><button>Crea</button></p>

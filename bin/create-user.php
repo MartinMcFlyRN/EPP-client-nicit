@@ -13,8 +13,8 @@ system('stty -echo 2>/dev/null');
 $pw = trim((string)fgets(STDIN));
 system('stty echo 2>/dev/null');
 fwrite(STDOUT, "\n");
-if (strlen($pw) < 10) {
-    fwrite(STDERR, "Password troppo corta (min 10)\n");
+if (strlen($pw) < min_password()) {
+    fwrite(STDERR, "Password troppo corta (min " . min_password() . ")\n");
     exit(1);
 }
 repo()->createUser($user, $pw, $role);
