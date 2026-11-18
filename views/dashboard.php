@@ -1,10 +1,13 @@
 <h1>Dashboard</h1>
+<?php if (epp_cfg()['url'] === '' || epp_cfg()['clid'] === ''): ?>
+  <div class="flash err">Parametri EPP non configurati. <?= can('admin') ? '<a href="' . url('settings') . '">Vai a Configurazione →</a>' : 'Chiedi a un amministratore.' ?></div>
+<?php endif; ?>
 <div class="grid g3">
   <div class="card">
     <h2>Sessione EPP</h2>
     <dl class="kv">
-      <dt>Server</dt><dd class="mono"><?= h(cfg('epp.url')) ?></dd>
-      <dt>Registrar</dt><dd class="mono"><?= h(cfg('epp.clid')) ?></dd>
+      <dt>Server</dt><dd class="mono"><?= h(epp_cfg()['url']) ?></dd>
+      <dt>Registrar</dt><dd class="mono"><?= h(epp_cfg()['clid']) ?></dd>
       <dt>Stato</dt><dd><?= $state['logged_in'] ? '<span class="badge ok">connesso</span>' : '<span class="badge">non connesso</span>' ?></dd>
       <dt>Ultimo login</dt><dd><?= $state['login_at'] ? date('d/m/Y H:i:s', (int)$state['login_at']) : '—' ?></dd>
       <dt>Ultima attività</dt><dd><?= $state['last'] ? date('d/m/Y H:i:s', (int)$state['last']) : '—' ?></dd>
@@ -16,7 +19,8 @@
         <form method="post" action="<?= url('session/login') ?>" class="shrink"><?= csrf_field() ?><button class="sec">Login</button></form>
         <form method="post" action="<?= url('session/logout') ?>" class="shrink"><?= csrf_field() ?><button class="sec">Logout</button></form>
       <?php endif; ?>
-      <?php if (can('admin')): ?><a class="btn sec shrink" href="<?= url('session/password') ?>">Cambia password</a><?php endif; ?>
+      <?php if (can('admin')): ?><a class="btn sec shrink" href="<?= url('session/password') ?>">Cambia password</a>
+        <a class="btn sec shrink" href="<?= url('settings') ?>">Configurazione</a><?php endif; ?>
     </p>
   </div>
   <div class="card">

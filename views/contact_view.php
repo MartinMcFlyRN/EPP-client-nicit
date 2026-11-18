@@ -36,7 +36,7 @@
     <?php require __DIR__ . '/partials_response.php'; ?>
   </div>
 </div>
-<?php if (can('operator') && $c['clID'] === cfg('epp.clid')): ?>
+<?php if (can('operator') && $c['clID'] === epp_cfg()['clid']): ?>
 <p class="row">
   <a class="btn shrink" href="<?= url('contacts/edit', ['id' => $c['id']]) ?>">Modifica</a>
   <form method="post" action="<?= url('contacts/delete') ?>" class="shrink" data-confirm="Cancellare il contatto <?= h($c['id']) ?>?">

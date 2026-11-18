@@ -1,4 +1,4 @@
-<?php $u = current_user(); $st = $u ? epp()->state() : null; $cur = $_GET['r'] ?? 'dashboard'; ?>
+<?php $u = current_user(); $st = $u ? epp_state() : null; $cur = $_GET['r'] ?? 'dashboard'; ?>
 <!doctype html>
 <html lang="it">
 <head>
@@ -22,6 +22,7 @@
     <?php if (can('admin')): ?>
       <a href="<?= url('console') ?>" class="<?= $cur === 'console' ? 'on' : '' ?>">Console XML</a>
       <a href="<?= url('users') ?>" class="<?= $cur === 'users' ? 'on' : '' ?>">Utenti</a>
+      <a href="<?= url('settings') ?>" class="<?= $cur === 'settings' ? 'on' : '' ?>">Configurazione</a>
     <?php endif; ?>
   </nav>
   <div class="who">

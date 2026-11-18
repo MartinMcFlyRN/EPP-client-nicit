@@ -1,0 +1,61 @@
+<?php
+$src = fn(string $k) => match (epp_cfg_source($k)) {
+    'web' => '<span class="badge client">da web</span>',
+    'config' => '<span class="badge">da config.php</span>',
+    'file' => '<span class="badge warn">storage/epp-password</span>',
+    default => '<span class="badge bad">non impostato</span>',
+};
+$help = [
+    'url' => 'Produzione <code>https://epp.nic.it</code> — test <code>https://pub-test.nic.it</code>. Re-registrazione di domini cancellati: <code>https://epp-deleted.nic.it</code>.',
+    'clid' => 'Username del registrar presso il Registro.',
+    'password' => 'Lascia vuoto per non cambiarla. Viene salvata cifrata. Per cambiarla anche presso il Registro usa «Cambia password» in dashboard.',
+    'tridPrefix' => 'Prefisso dei clTRID generati, utile per riconoscere i comandi di questo client.',
+    'source_ip' => 'IP locale da cui uscire: deve essere tra quelli autorizzati presso il Registro. Vuoto = default di sistema.',
+    'ca_file' => 'Percorso assoluto sul server. Vuoto = CA di sistema.',
+    'client_cert' => 'Solo se richiesto: percorso assoluto del certificato PEM.',
+    'client_key' => 'Percorso assoluto della chiave PEM del certificato client.',
+    'idle_timeout' => 'Dopo quanti secondi senza comandi rifare il login preventivamente. Tienilo sotto il timeout di sessione del Registro.',
+];
+?>
+<h1>Configurazione EPP</h1>
+<p class="help">I valori salvati qui hanno precedenza su <code>config.php</code>. Un campo vuoto (o «usa config.php») torna al valore del file.
+<?php if ($meta['at']): ?>Ultima modifica: <?= fmt_date($meta['at']) ?><?= $meta['by'] ? ' · ' . h($meta['by']) : '' ?>.<?php endif; ?></p>
+
+<form method="post" action="<?= url('settings') ?>" class="card" style="max-width:860px" autocomplete="off">
+  <?= csrf_field() ?>
+  <?php foreach (EPP_FIELDS as $k => [$label, $type]):
+      $isWeb = epp_cfg_source($k) === 'web';
+      $val = $type === 'secret' ? '' : (string)($isWeb ? settings()->get("epp.$k") : '');
+      $ph = $type === 'secret'
+          ? (epp_cfg_source($k) ? '•••••••• (impostata)' : 'non impostata')
+          : (string)(cfg("epp.$k") ?? '');
+  ?>
+    <div style="margin-bottom:6px">
+      <label><?= h($label) ?> <?= $src($k) ?></label>
+      <div class="row">
+        <input type="<?= $type === 'secret' ? 'password' : 'text' ?>" name="<?= $k ?>" value="<?= h($val) ?>"
+               placeholder="<?= h($ph) ?>" <?= $type === 'secret' ? 'autocomplete="new-password"' : '' ?>>
+        <?php if ($isWeb): ?>
+          <label class="shrink" style="font-weight:400;margin:0"><input type="checkbox" name="reset_<?= $k ?>" value="1"> usa config.php</label>
+        <?php endif; ?>
+      </div>
+      <?php if (isset($help[$k])): ?><p class="help"><?= $help[$k] ?></p><?php endif; ?>
+    </div>
+  <?php endforeach; ?>
+  <p class="row">
+    <button class="shrink">Salva</button>
+    <button class="sec shrink" name="test" value="1">Salva e prova connessione</button>
+  </p>
+  <p class="help">Se cambiano server, credenziali, IP sorgente o certificati, la sessione EPP aperta viene chiusa e il comando successivo rifà il login.</p>
+</form>
+
+<div class="card" style="max-width:860px">
+  <h2>Valori in uso</h2>
+  <dl class="kv">
+    <dt>Server</dt><dd class="mono"><?= h($e['url'] ?: '—') ?></dd>
+    <dt>clID</dt><dd class="mono"><?= h($e['clid'] ?: '—') ?></dd>
+    <dt>IP sorgente</dt><dd class="mono"><?= h(($e['source_ip'] ?? '') ?: 'default') ?></dd>
+    <dt>Relogin dopo</dt><dd><?= (int)($e['idle_timeout'] ?? 600) ?> s</dd>
+  </dl>
+  <p class="help">La password è cifrata nel DB con la chiave <code><?= cfg('app.secret') ? 'app.secret di config.php' : 'storage/app.key' ?></code>: includila nei backup, senza la chiave andrà reinserita.</p>
+</div>

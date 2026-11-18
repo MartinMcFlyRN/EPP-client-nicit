@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use NicEpp\App\Repo;
+use NicEpp\App\Settings;
 use NicEpp\Epp\{Client, Commands, Response, Transport};
 
 define('APP_ROOT', dirname(__DIR__));
@@ -51,23 +52,80 @@ function storage(string $f = ''): string
     return $f === '' ? $d : $d . '/' . $f;
 }
 
-function epp_password(): string
+function settings(): Settings
 {
-    $f = storage('epp-password');
-    return is_file($f) ? trim((string)file_get_contents($f)) : (string)cfg('epp.password');
+    static $s = null;
+    return $s ??= new Settings(db(), storage('app.key'), cfg('app.secret') ?: null);
 }
 
-function epp(): Client
+/**
+ * Parametri EPP modificabili da web: chiave => [etichetta, tipo].
+ * Il valore salvato in DB (sezione Configurazione) ha precedenza su config.php.
+ */
+const EPP_FIELDS = [
+    'url'             => ['URL server EPP', 'url'],
+    'clid'            => ['Username (clID)', 'text'],
+    'password'        => ['Password', 'secret'],
+    'tridPrefix'      => ['Prefisso clTRID', 'text'],
+    'source_ip'       => ['IP sorgente', 'ip'],
+    'ca_file'         => ['Bundle CA', 'file'],
+    'client_cert'     => ['Certificato client', 'file'],
+    'client_key'      => ['Chiave certificato client', 'file'],
+    'timeout'         => ['Timeout richiesta (s)', 'int'],
+    'connect_timeout' => ['Timeout connessione (s)', 'int'],
+    'idle_timeout'    => ['Relogin dopo inattività (s)', 'int'],
+];
+
+/** Configurazione EPP effettiva: DB > (solo password) storage/epp-password > config.php */
+function epp_cfg(): array
+{
+    $e = (array)cfg('epp', []);
+    foreach (array_keys(EPP_FIELDS) as $k) {
+        $v = settings()->get('epp.' . $k);
+        if ($v !== null) {
+            $e[$k] = EPP_FIELDS[$k][1] === 'int' ? (int)$v : $v;
+        }
+    }
+    if (!settings()->has('epp.password') && is_file(storage('epp-password'))) {
+        $e['password'] = trim((string)file_get_contents(storage('epp-password'))); // compatibilità versioni precedenti
+    }
+    return $e + ['url' => '', 'clid' => '', 'password' => '', 'tridPrefix' => 'WEB'];
+}
+
+/** Da dove arriva ogni valore: 'web', 'config' o 'file'. */
+function epp_cfg_source(string $k): string
+{
+    if (settings()->has('epp.' . $k)) {
+        return 'web';
+    }
+    if ($k === 'password' && is_file(storage('epp-password'))) {
+        return 'file';
+    }
+    return cfg('epp.' . $k) !== null && cfg('epp.' . $k) !== '' ? 'config' : '';
+}
+
+/** Stato della sessione EPP letto da disco (funziona anche se i parametri EPP non sono ancora configurati). */
+function epp_state(): array
+{
+    $f = storage('epp-state.json');
+    $s = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
+    return (is_array($s) ? $s : []) + ['logged_in' => false, 'last' => 0, 'login_at' => 0, 'msgq' => null];
+}
+
+function epp(bool $fresh = false): Client
 {
     static $c = null;
-    if ($c) {
+    if ($c && !$fresh) {
         return $c;
     }
-    $e = cfg('epp');
+    $e = epp_cfg();
+    if ($e['url'] === '' || $e['clid'] === '') {
+        throw new \NicEpp\Epp\EppException('Parametri EPP non configurati: impostali in Configurazione');
+    }
     $t = new Transport($e['url'], storage('epp-cookies.txt'), $e);
     $c = new Client($t, new Commands($e['tridPrefix'] ?? 'WEB'), [
         'clid' => $e['clid'],
-        'password' => epp_password(),
+        'password' => (string)$e['password'],
         'state_file' => storage('epp-state.json'),
         'lock_file' => storage('epp.lock'),
         'idle_timeout' => $e['idle_timeout'] ?? 600,

@@ -15,7 +15,8 @@ Pensato per uso interno dello staff del registrar.
 - **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata.
 - **Console XML** (solo admin): invia XML arbitrario sulla sessione autenticata.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
-- **Cambio password EPP** da UI (`login` con `newPW`): la nuova password viene salvata in `storage/epp-password`.
+- **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
+- **Cambio password EPP** da UI (`login` con `newPW`): la nuova password viene salvata direttamente in Configurazione.
 
 ## Come gestisce la sessione EPP
 
@@ -29,12 +30,14 @@ Il client tiene **una sola sessione condivisa** (cookie jar in `storage/`) seria
 ## Installazione
 
 ```bash
-cp config.sample.php config.php        # credenziali DB ed EPP
+cp config.sample.php config.php        # credenziali DB (i parametri EPP si impostano da web)
 mysql -u root -p -e "CREATE DATABASE nicepp CHARACTER SET utf8mb4"
 mysql -u root -p nicepp < sql/schema.sql
 mkdir -p storage && chown www-data:www-data storage && chmod 700 storage
 php bin/create-user.php manuel admin
 ```
+
+Poi entra come admin e compila **Configurazione** (server, clID, password). Usa «Salva e prova connessione» per verificare.
 
 Il document root deve puntare a **`public/`**: `config.php`, `storage/` e `src/` restano fuori dal web.
 
@@ -68,6 +71,16 @@ o Plesk), il `.htaccess` incluso inoltra tutte le richieste a `public/` e blocca
 (`src/`, `views/`, `sql/`, `bin/`, `tests/`, `storage/`) e i file nascosti. Servono `mod_rewrite` e `AllowOverride All`
 (o almeno `FileInfo Options`). Senza `mod_rewrite` il `.htaccess` nega tutto, così non c'è rischio di esporre la configurazione.
 Lascia `base_url` a `''`.
+
+### Configurazione da web e cifratura
+
+I parametri EPP salvati in Configurazione hanno precedenza su `config.php`; un campo lasciato vuoto torna al valore del file.
+La password è cifrata (libsodium, altrimenti AES-256-GCM) con `app.secret` di `config.php` oppure, se vuoto,
+con la chiave `storage/app.key` generata al primo salvataggio. **Includi la chiave nei backup**: senza, la password va reinserita.
+Se cambiano server, credenziali, IP sorgente o certificati, la sessione EPP aperta viene chiusa e il comando successivo rifà il login.
+
+**Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/002_settings.sql`.
+Un eventuale `storage/epp-password` continua a essere letto finché non salvi una password da web.
 
 ### Cron poll
 

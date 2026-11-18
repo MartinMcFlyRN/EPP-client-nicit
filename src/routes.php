@@ -93,7 +93,7 @@ return [
 
     'dashboard' => function () {
         render('dashboard', [
-            'state' => epp()->state(),
+            'state' => epp_state(),
             'expiring' => array_slice(array_filter(repo()->domains('', 'ex_date', 200),
                 fn($d) => $d['ex_date'] && strtotime($d['ex_date']) < strtotime('+45 days')), 0, 20),
             'recent' => repo()->logs([], 15),
@@ -128,12 +128,86 @@ return [
                 throw new InvalidArgumentException('Le password non coincidono o la lunghezza non è valida (8–16)');
             }
             $r = epp()->login($new);
-            file_put_contents(storage('epp-password'), $new);
-            chmod(storage('epp-password'), 0600);
-            flash_response($r, 'Password EPP cambiata e salvata in storage/epp-password');
+            settings()->set('epp.password', $new, current_user()['username']);
+            @unlink(storage('epp-password'));
+            flash_response($r, 'Password EPP cambiata presso il Registro e salvata in Configurazione');
             redirect('dashboard');
         }
         render('password');
+    },
+
+    // ============================================================ configurazione EPP (admin)
+
+    'settings' => function () {
+        require_role('admin');
+        if (is_post()) {
+            $by = current_user()['username'];
+            $new = [];
+            foreach (EPP_FIELDS as $k => [$label, $type]) {
+                $reset = in("reset_$k") === '1';
+                $v = $type === 'secret' ? (string)($_POST[$k] ?? '') : in($k);
+                if ($reset) {
+                    $new[$k] = null;
+                    continue;
+                }
+                if ($type === 'secret' && $v === '') {
+                    continue; // password lasciata vuota = invariata
+                }
+                if ($v !== '') {
+                    $ok = match ($type) {
+                        'url'  => preg_match('#^https://[a-z0-9.-]+(:\d+)?(/.*)?$#i', $v)
+                                  || preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?(/.*)?$#i', $v),
+                        'ip'   => (bool)filter_var($v, FILTER_VALIDATE_IP),
+                        'int'  => ctype_digit($v) && (int)$v >= 1 && (int)$v <= 86400,
+                        'file' => is_file($v) && is_readable($v),
+                        'text' => (bool)preg_match('/^[\w.-]{1,64}$/', $v),
+                        default => true,
+                    };
+                    if (!$ok) {
+                        throw new InvalidArgumentException("Valore non valido per «{$label}»"
+                            . ($type === 'file' ? ': il file non esiste o non è leggibile da PHP' : ''));
+                    }
+                }
+                $new[$k] = $v;
+            }
+
+            // Se cambiano server o credenziali, chiude la sessione aperta con i vecchi parametri
+            $old = epp_cfg();
+            $sessionKeys = ['url', 'clid', 'password', 'source_ip', 'ca_file', 'client_cert', 'client_key'];
+            $changed = false;
+            foreach ($sessionKeys as $k) {
+                if (array_key_exists($k, $new) && (string)($new[$k] ?? cfg("epp.$k", '')) !== (string)($old[$k] ?? '')) {
+                    $changed = true;
+                }
+            }
+            if ($changed && epp_state()['logged_in']) {
+                try { epp()->logout(); } catch (\Throwable) { /* sessione forse già scaduta */ }
+            }
+            foreach ($new as $k => $v) {
+                settings()->set("epp.$k", $v, $by);
+            }
+            if ($changed) {
+                @file_put_contents(storage('epp-cookies.txt'), '');
+                @file_put_contents(storage('epp-state.json'), json_encode(['logged_in' => false, 'last' => 0, 'login_at' => 0, 'msgq' => null]));
+                if (array_key_exists('password', $new) && $new['password'] !== null) {
+                    @unlink(storage('epp-password'));
+                }
+            }
+            flash('ok', 'Configurazione salvata' . ($changed ? ' — sessione EPP chiusa, il prossimo comando farà il login con i nuovi parametri' : ''));
+
+            if (in('test') === '1') {
+                try {
+                    $c = epp(true);
+                    $c->hello();
+                    $r = $c->login();
+                    flash('ok', 'Test riuscito: connessione e login OK (' . $r->code() . ' ' . $r->msg() . ')');
+                } catch (\Throwable $e) {
+                    flash('err', 'Test fallito: ' . ($e instanceof \NicEpp\Epp\EppException && $e->response ? $e->response->errorText() : $e->getMessage()));
+                }
+            }
+            redirect('settings');
+        }
+        render('settings', ['e' => epp_cfg(), 'meta' => settings()->meta()]);
     },
 
     // ============================================================ domini
@@ -172,7 +246,7 @@ return [
         if (!$r->ok()) {
             flash('err', $r->errorText());
         }
-        render('domain_view', ['name' => $name, 'res' => $r, 'd' => $i, 'ours' => $i && $i['clID'] === cfg('epp.clid')]);
+        render('domain_view', ['name' => $name, 'res' => $r, 'd' => $i, 'ours' => $i && $i['clID'] === epp_cfg()['clid']]);
     },
 
     'domains/create' => function () {
@@ -199,7 +273,7 @@ return [
             if (flash_response($r, "Dominio $name registrato")) {
                 $cd = $r->createData();
                 repo()->saveDomain(['name' => $name, 'registrant' => strtoupper(in('registrant')),
-                    'status' => [], 'clID' => cfg('epp.clid'), 'crDate' => $cd['crDate'], 'exDate' => $cd['exDate']]);
+                    'status' => [], 'clID' => epp_cfg()['clid'], 'crDate' => $cd['crDate'], 'exDate' => $cd['exDate']]);
                 redirect('domains/info', ['name' => $name]);
             }
             render('domain_create', ['f' => $_POST, 'res' => $r]);
@@ -452,7 +526,7 @@ return [
 
     'poll' => function () {
         require_role('readonly');
-        render('poll', ['rows' => repo()->polls(), 'state' => epp()->state()]);
+        render('poll', ['rows' => repo()->polls(), 'state' => epp_state()]);
     },
 
     'poll/req' => function () {

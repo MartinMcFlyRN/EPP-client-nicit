@@ -1,6 +1,6 @@
 <h1>Cambio password EPP</h1>
 <div class="card" style="max-width:520px">
-  <p class="help">Esegue un nuovo login con &lt;newPW&gt;. Se va a buon fine la nuova password viene salvata in <code>storage/epp-password</code> e usata da qui in avanti al posto di quella in config.php.</p>
+  <p class="help">Esegue un nuovo login con &lt;newPW&gt;. Se va a buon fine la nuova password viene salvata (cifrata) in Configurazione e usata da qui in avanti. Per aggiornare solo la password salvata, senza cambiarla presso il Registro, usa <a href="<?= url('settings') ?>">Configurazione</a>.</p>
   <form method="post" action="<?= url('session/password') ?>">
     <?= csrf_field() ?>
     <label>Nuova password</label><input type="password" name="new_pw" required minlength="8" maxlength="16">
