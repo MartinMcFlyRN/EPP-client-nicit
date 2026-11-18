@@ -61,6 +61,14 @@ server {
 }
 ```
 
+### Apache
+
+Se puoi, punta il DocumentRoot a `public/`. Se invece il vhost punta alla radice del progetto (ad esempio su hosting condiviso
+o Plesk), il `.htaccess` incluso inoltra tutte le richieste a `public/` e blocca le cartelle interne
+(`src/`, `views/`, `sql/`, `bin/`, `tests/`, `storage/`) e i file nascosti. Servono `mod_rewrite` e `AllowOverride All`
+(o almeno `FileInfo Options`). Senza `mod_rewrite` il `.htaccess` nega tutto, così non c'è rischio di esporre la configurazione.
+Lascia `base_url` a `''`.
+
 ### Cron poll
 
 ```
