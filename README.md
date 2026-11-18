@@ -17,6 +17,7 @@ Pensato per uso interno dello staff del registrar.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
 - **Doppio fattore obbligatorio** (TOTP con QR code) per ogni utente, con codici di recupero e reset da parte di un admin.
 - **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
+- **Valori predefiniti** in Configurazione: nameserver, admin e tech che precompilano la registrazione e si possono applicare con un clic quando modifichi un dominio.
 - **Cambio password EPP** da UI (`login` con `newPW`): la nuova password viene salvata direttamente in Configurazione.
 
 ## Come gestisce la sessione EPP

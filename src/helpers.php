@@ -278,3 +278,15 @@ function second_factor_failed(string $msg = 'Codice non valido'): void
     }
     flash('err', $msg);
 }
+
+// ---------------------------------------------------------------- valori predefiniti (Configurazione)
+
+/** Nameserver e contatti proposti per i nuovi domini e nelle modifiche. */
+function epp_defaults(): array
+{
+    return [
+        'ns' => (string)settings()->get('defaults.ns', ''),
+        'admin' => (string)settings()->get('defaults.admin', ''),
+        'techs' => (string)settings()->get('defaults.techs', ''),
+    ];
+}

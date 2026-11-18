@@ -238,6 +238,44 @@ return [
 
     'settings' => function () {
         require_role('admin');
+        if (is_post() && in('section') === 'defaults') {
+            $by = current_user()['username'];
+            $ns = parse_ns_lines(in('def_ns'));
+            if ($ns && (count($ns) < 2 || count($ns) > 6)) {
+                throw new InvalidArgumentException('Nameserver predefiniti: da 2 a 6 (oppure nessuno)');
+            }
+            $admin = strtoupper(in('def_admin'));
+            $techs = split_list(strtoupper(in('def_techs')));
+            foreach (array_merge($admin !== '' ? [$admin] : [], $techs) as $id) {
+                if (!preg_match('/^[A-Z0-9._-]{3,16}$/', $id)) {
+                    throw new InvalidArgumentException("ID contatto non valido: $id");
+                }
+            }
+            if (count($techs) > 6) {
+                throw new InvalidArgumentException('Massimo 6 contatti tech');
+            }
+            settings()->set('defaults.ns', ns_to_lines($ns), $by);
+            settings()->set('defaults.admin', $admin, $by);
+            settings()->set('defaults.techs', implode("\n", $techs), $by);
+            flash('ok', 'Valori predefiniti salvati');
+
+            // verifica (non bloccante) che i contatti esistano presso il Registro
+            $ids = array_values(array_unique(array_merge($admin !== '' ? [$admin] : [], $techs)));
+            if ($ids) {
+                try {
+                    $r = epp()->contactCheck($ids);
+                    if ($r->ok()) {
+                        $missing = array_column(array_filter($r->contactCheck(), fn($c) => $c['avail']), 'id');
+                        if ($missing) {
+                            flash('err', 'Attenzione: questi contatti non esistono ancora presso il Registro: ' . implode(', ', $missing));
+                        }
+                    }
+                } catch (\Throwable) {
+                    // EPP non raggiungibile: la verifica si salta
+                }
+            }
+            redirect('settings');
+        }
         if (is_post()) {
             $by = current_user()['username'];
             $new = [];
@@ -359,6 +397,9 @@ return [
     'domains/create' => function () {
         require_role('operator');
         if (is_post()) {
+            if (in('admin_is_registrant') === '1') {
+                $_POST['admin'] = in('registrant'); // es. registrante persona fisica
+            }
             $name = normalize_domain(in('name'));
             $ns = parse_ns_lines(in('ns'));
             $techs = split_list(strtoupper(in('techs')));
@@ -386,7 +427,9 @@ return [
             render('domain_create', ['f' => $_POST, 'res' => $r]);
             return;
         }
-        render('domain_create', ['f' => ['name' => in('name'), 'authinfo' => gen_authinfo()], 'res' => null]);
+        $def = epp_defaults();
+        render('domain_create', ['f' => ['name' => in('name'), 'authinfo' => gen_authinfo(),
+            'ns' => $def['ns'], 'admin' => $def['admin'], 'techs' => $def['techs']], 'res' => null]);
     },
 
     'domains/update' => function () use ($domainInfo) {

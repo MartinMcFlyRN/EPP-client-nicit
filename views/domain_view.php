@@ -49,6 +49,7 @@ $op = can('operator') && $ours;
 
 <?php if ($op): ?>
 <?php
+  $def = epp_defaults();
   $admins = implode(' ', array_column(array_filter($d['contacts'], fn($c) => $c['type'] === 'admin'), 'id'));
   $techs = implode("\n", array_column(array_filter($d['contacts'], fn($c) => $c['type'] === 'tech'), 'id'));
   $form = fn(string $action) => '<form method="post" action="' . url('domains/update') . '">' . csrf_field()
@@ -59,15 +60,24 @@ $op = can('operator') && $ours;
   <div class="card">
     <h2>Nameserver</h2>
     <?= $form('ns') ?>
-      <textarea name="ns"><?= h(ns_to_lines($d['ns'])) ?></textarea>
+      <textarea name="ns" id="ns_cur"><?= h(ns_to_lines($d['ns'])) ?></textarea>
+      <?php if ($def['ns'] !== ''): ?>
+        <p class="row"><button type="button" class="sec small shrink" data-fill="ns_cur" data-value="<?= h($def['ns']) ?>">Usa DNS predefiniti</button>
+          <button type="button" class="sec small shrink" data-fill="ns_cur" data-value="<?= h(ns_to_lines($d['ns'])) ?>">Ripristina attuali</button></p>
+      <?php endif; ?>
       <p class="help">Una riga per host: <code>ns1.esempio.it 192.0.2.1 2001:db8::1</code>. Glue IP solo per host sotto il dominio. Da 2 a 6 NS. Il Registro verifica la configurazione DNS.</p>
       <button>Aggiorna NS</button></form>
   </div>
   <div class="card">
     <h2>Contatti admin / tech</h2>
     <?= $form('contacts') ?>
-      <label>Admin</label><input type="text" name="admin" value="<?= h($admins) ?>">
-      <label>Tech (uno per riga, max 6)</label><textarea name="techs" style="min-height:60px"><?= h($techs) ?></textarea>
+      <label>Admin</label><input type="text" name="admin" id="adm_cur" value="<?= h($admins) ?>">
+      <label>Tech (uno per riga, max 6)</label><textarea name="techs" id="tech_cur" style="min-height:60px"><?= h($techs) ?></textarea>
+        <p class="row">
+          <?php if ($def['admin'] !== ''): ?><button type="button" class="sec small shrink" data-fill="adm_cur" data-value="<?= h($def['admin']) ?>">Admin predefinito</button><?php endif; ?>
+          <?php if ($def['techs'] !== ''): ?><button type="button" class="sec small shrink" data-fill="tech_cur" data-value="<?= h($def['techs']) ?>">Tech predefiniti</button><?php endif; ?>
+          <button type="button" class="sec small shrink" data-fill="adm_cur" data-value="<?= h($d['registrant']) ?>">Admin = registrante</button>
+        </p>
       <p><button>Aggiorna contatti</button></p></form>
   </div>
   <div class="card">

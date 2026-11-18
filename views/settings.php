@@ -67,3 +67,20 @@ $help = [
   </dl>
   <p class="help">La password è cifrata nel DB con la chiave <code><?= cfg('app.secret') ? 'app.secret di config.php' : 'storage/app.key' ?></code>: includila nei backup, senza la chiave andrà reinserita.</p>
 </div>
+
+<?php $def = epp_defaults(); ?>
+<form method="post" action="<?= url('settings') ?>" class="card" style="max-width:860px" id="defaults">
+  <?= csrf_field() ?><input type="hidden" name="section" value="defaults">
+  <h2>Valori predefiniti</h2>
+  <p class="help">Compilano in automatico il modulo «Nuovo dominio» e vengono proposti con un pulsante quando modifichi nameserver o contatti di un dominio.</p>
+  <label>Nameserver predefiniti (2–6, uno per riga: host [ip...])</label>
+  <textarea name="def_ns" placeholder="ns1.pensareweb.it 192.0.2.10&#10;ns2.pensareweb.it 192.0.2.11"><?= h($def['ns']) ?></textarea>
+  <p class="help">Glue IP solo se il nameserver sta sotto il dominio che registri; per i vostri nameserver su un altro dominio basta il nome.</p>
+  <div class="row">
+    <div><label>Admin predefinito (ID)</label><input type="text" name="def_admin" value="<?= h($def['admin']) ?>"></div>
+    <div><label>Tech predefiniti (ID, uno per riga, max 6)</label><textarea name="def_techs" style="min-height:60px"><?= h($def['techs']) ?></textarea></div>
+  </div>
+  <p class="help">Per i registranti persona fisica il Registro vuole l'admin uguale al registrante: nel modulo di registrazione c'è l'opzione «Usa il registrante come admin».
+    Al salvataggio viene controllato che i contatti esistano presso il Registro.</p>
+  <p><button>Salva valori predefiniti</button></p>
+</form>
