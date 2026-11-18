@@ -241,3 +241,40 @@ function flash_response(\NicEpp\Epp\Response $r, string $okMsg): bool
     flash('err', $r->errorText());
     return false;
 }
+
+// ---------------------------------------------------------------- secondo fattore
+
+/** Utente che ha superato la password ma non ancora il secondo fattore (scade dopo 5 minuti). */
+function pending_user(): array
+{
+    $id = (int)($_SESSION['pre_uid'] ?? 0);
+    $u = $id ? repo()->userById($id) : null;
+    if (!$u || !$u['active'] || time() - (int)($_SESSION['pre_at'] ?? 0) > 300) {
+        unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
+        flash('err', 'Sessione di accesso scaduta, rientra');
+        redirect('login');
+    }
+    return $u;
+}
+
+function finish_login(array $u, string $to = 'dashboard'): never
+{
+    session_regenerate_id(true);
+    unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries']);
+    $_SESSION['uid'] = (int)$u['id'];
+    repo()->touchLogin((int)$u['id']);
+    redirect($to);
+}
+
+/** Dopo 5 codici errati si torna alla password. */
+function second_factor_failed(string $msg = 'Codice non valido'): void
+{
+    usleep(500000);
+    $_SESSION['pre_tries'] = (int)($_SESSION['pre_tries'] ?? 0) + 1;
+    if ($_SESSION['pre_tries'] >= 5) {
+        unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
+        flash('err', 'Troppi codici errati, rientra con la password');
+        redirect('login');
+    }
+    flash('err', $msg);
+}

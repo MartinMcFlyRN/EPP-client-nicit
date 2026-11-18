@@ -92,7 +92,7 @@ final class Settings
         return $k;
     }
 
-    private function encrypt(string $plain): string
+    public function encrypt(string $plain): string
     {
         $k = $this->key();
         if (function_exists('sodium_crypto_secretbox')) {
@@ -104,7 +104,7 @@ final class Settings
         return 'o1:' . base64_encode($iv . $tag . $ct);
     }
 
-    private function decrypt(string $stored): string
+    public function decrypt(string $stored): string
     {
         $k = $this->key();
         [$v, $b] = explode(':', $stored, 2) + [1 => ''];

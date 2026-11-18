@@ -70,15 +70,113 @@ return [
             $u = repo()->userByName(in('username'));
             if ($u && $u['active'] && password_verify((string)($_POST['password'] ?? ''), $u['pass_hash'])) {
                 session_regenerate_id(true);
-                $_SESSION['uid'] = (int)$u['id'];
-                repo()->touchLogin((int)$u['id']);
-                redirect('dashboard');
+                unset($_SESSION['uid'], $_SESSION['setup_secret']);
+                // primo fattore superato: l'accesso si completa solo dopo il secondo
+                $_SESSION['pre_uid'] = (int)$u['id'];
+                $_SESSION['pre_at'] = time();
+                $_SESSION['pre_tries'] = 0;
+                redirect($u['totp_enabled_at'] ? 'login/2fa' : 'login/setup');
             }
             usleep(500000);
             flash('err', 'Credenziali non valide');
             redirect('login');
         }
         render('login', ['bare' => true]);
+    },
+
+    'login/2fa' => function () {
+        $u = pending_user();
+        if (!$u['totp_enabled_at']) {
+            redirect('login/setup');
+        }
+        if (is_post()) {
+            $code = (string)($_POST['code'] ?? '');
+            $ok = false;
+            if (preg_match('/[A-Za-z]/', $code) || strlen(\NicEpp\App\Totp::normalizeRecovery($code)) === 10) {
+                // codice di recupero monouso
+                $hashes = json_decode((string)$u['recovery_codes'], true) ?: [];
+                foreach ($hashes as $i => $hsh) {
+                    if (password_verify(\NicEpp\App\Totp::normalizeRecovery($code), $hsh)) {
+                        unset($hashes[$i]);
+                        repo()->setRecoveryCodes((int)$u['id'], $hashes);
+                        flash('ok', 'Accesso con codice di recupero: ne restano ' . count($hashes) . '. Rigenerali da «Account» se stanno finendo.');
+                        $ok = true;
+                        break;
+                    }
+                }
+            } else {
+                $step = \NicEpp\App\Totp::verify(settings()->decrypt((string)$u['totp_secret']), $code, (int)$u['totp_last_step']);
+                if ($step !== null) {
+                    repo()->setTotpStep((int)$u['id'], $step);
+                    $ok = true;
+                }
+            }
+            if ($ok) {
+                finish_login($u);
+            }
+            second_factor_failed();
+            redirect('login/2fa');
+        }
+        render('login_2fa', ['bare' => true, 'u' => $u]);
+    },
+
+    'login/setup' => function () {
+        $u = pending_user();
+        if ($u['totp_enabled_at']) {
+            redirect('login/2fa');
+        }
+        $secret = $_SESSION['setup_secret'] ??= \NicEpp\App\Totp::newSecret();
+        if (is_post()) {
+            $step = \NicEpp\App\Totp::verify($secret, (string)($_POST['code'] ?? ''));
+            if ($step === null) {
+                second_factor_failed('Codice non valido: controlla che l\'orario del telefono sia sincronizzato e riprova');
+                redirect('login/setup');
+            }
+            $codes = \NicEpp\App\Totp::recoveryCodes();
+            repo()->enableTotp((int)$u['id'], settings()->encrypt($secret), array_map(
+                fn($c) => password_hash(\NicEpp\App\Totp::normalizeRecovery($c), PASSWORD_DEFAULT), $codes), $step);
+            unset($_SESSION['setup_secret']);
+            $_SESSION['show_recovery'] = $codes;
+            finish_login($u, 'account/recovery');
+        }
+        $issuer = (string)cfg('app.name', 'EPP .it');
+        render('login_setup', ['bare' => true, 'u' => $u, 'secret' => $secret,
+            'uri' => \NicEpp\App\Totp::uri($secret, $u['username'], $issuer)]);
+    },
+
+    'account/recovery' => function () {
+        $codes = $_SESSION['show_recovery'] ?? null;
+        unset($_SESSION['show_recovery']);
+        if (!$codes) {
+            redirect('account');
+        }
+        render('recovery', ['codes' => $codes]);
+    },
+
+    'account' => function () {
+        $u = current_user();
+        if (is_post()) {
+            $step = \NicEpp\App\Totp::verify(settings()->decrypt((string)$u['totp_secret']), (string)($_POST['code'] ?? ''), (int)$u['totp_last_step']);
+            if ($step === null) {
+                throw new InvalidArgumentException('Codice dell\'app non valido');
+            }
+            repo()->setTotpStep((int)$u['id'], $step);
+            if (in('action') === 'password') {
+                $pw = (string)($_POST['new_pw'] ?? '');
+                if (strlen($pw) < 10 || $pw !== (string)($_POST['new_pw2'] ?? '')) {
+                    throw new InvalidArgumentException('Password di almeno 10 caratteri e uguale nei due campi');
+                }
+                repo()->updateUser((int)$u['id'], $u['role'], (bool)$u['active'], $pw);
+                flash('ok', 'Password cambiata');
+                redirect('account');
+            }
+            $codes = \NicEpp\App\Totp::recoveryCodes();
+            repo()->setRecoveryCodes((int)$u['id'], array_map(
+                fn($c) => password_hash(\NicEpp\App\Totp::normalizeRecovery($c), PASSWORD_DEFAULT), $codes));
+            $_SESSION['show_recovery'] = $codes;
+            redirect('account/recovery');
+        }
+        render('account', ['u' => $u, 'left' => count(json_decode((string)$u['recovery_codes'], true) ?: [])]);
     },
 
     'logout' => function () {
@@ -658,6 +756,11 @@ return [
     'users' => function () {
         require_role('admin');
         if (is_post()) {
+            if (in('reset_2fa') !== '') {
+                repo()->resetTotp((int)in('reset_2fa'));
+                flash('ok', 'Doppio fattore azzerato: l\'utente dovrà configurarlo di nuovo al prossimo accesso');
+                redirect('users');
+            }
             if (!isset(ROLE_LEVEL[in('role')])) {
                 throw new InvalidArgumentException('Ruolo non valido');
             }

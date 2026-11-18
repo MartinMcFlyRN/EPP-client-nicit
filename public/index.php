@@ -23,8 +23,20 @@ if (!isset($routes[$r])) {
     render('error', ['title' => 'Pagina non trovata', 'message' => $r]);
     exit;
 }
-if ($r !== 'login' && !current_user()) {
-    redirect('login');
+$public = ['login', 'login/2fa', 'login/setup'];
+if (!in_array($r, $public, true)) {
+    $cu = current_user();
+    if (!$cu) {
+        redirect('login');
+    }
+    if (!$cu['totp_enabled_at']) {
+        // 2FA obbligatoria: anche le sessioni già aperte devono configurarla prima di proseguire
+        unset($_SESSION['uid']);
+        $_SESSION['pre_uid'] = (int)$cu['id'];
+        $_SESSION['pre_at'] = time();
+        $_SESSION['pre_tries'] = 0;
+        redirect('login/setup');
+    }
 }
 if (is_post()) {
     csrf_check();

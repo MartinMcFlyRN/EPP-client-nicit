@@ -28,7 +28,7 @@
   <div class="who">
     <span class="sess <?= $st['logged_in'] ? 'up' : 'down' ?>" title="Sessione EPP">EPP <?= $st['logged_in'] ? 'connesso' : 'non connesso' ?></span>
     <?php if ($st['msgq']): ?><a class="badge warn" href="<?= url('poll') ?>"><?= (int)$st['msgq'] ?> msg</a><?php endif; ?>
-    <span><?= h($u['username']) ?> · <?= h($u['role']) ?></span>
+    <a href="<?= url('account') ?>"><?= h($u['username']) ?> · <?= h($u['role']) ?></a>
     <form method="post" action="<?= url('logout') ?>" class="inline"><?= csrf_field() ?><button class="link">Esci</button></form>
   </div>
 </header>

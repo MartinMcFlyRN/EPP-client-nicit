@@ -8,7 +8,11 @@ CREATE TABLE IF NOT EXISTS users (
   role ENUM('admin','operator','readonly') NOT NULL DEFAULT 'operator',
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL,
-  last_login DATETIME NULL
+  last_login DATETIME NULL,
+  totp_secret TEXT NULL,
+  totp_enabled_at DATETIME NULL,
+  totp_last_step BIGINT NOT NULL DEFAULT 0,
+  recovery_codes TEXT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS settings (

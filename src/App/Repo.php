@@ -55,7 +55,7 @@ final class Repo
 
     public function users(): array
     {
-        return $this->db->query('SELECT id, username, role, active, created_at, last_login FROM users ORDER BY username')->fetchAll();
+        return $this->db->query('SELECT id, username, role, active, created_at, last_login, totp_enabled_at FROM users ORDER BY username')->fetchAll();
     }
 
     public function createUser(string $u, string $pw, string $role): void
@@ -70,6 +70,31 @@ final class Repo
         if ($pw) {
             $this->db->prepare('UPDATE users SET pass_hash = ? WHERE id = ?')->execute([password_hash($pw, PASSWORD_DEFAULT), $id]);
         }
+    }
+
+    // ---------------------------------------------------------------- 2FA
+
+    /** $secretEnc: segreto TOTP cifrato; $recoveryHashes: password_hash dei codici di recupero */
+    public function enableTotp(int $id, string $secretEnc, array $recoveryHashes, int $step): void
+    {
+        $this->db->prepare('UPDATE users SET totp_secret = ?, totp_enabled_at = ?, totp_last_step = ?, recovery_codes = ? WHERE id = ?')
+            ->execute([$secretEnc, $this->now(), $step, json_encode($recoveryHashes), $id]);
+    }
+
+    public function setTotpStep(int $id, int $step): void
+    {
+        $this->db->prepare('UPDATE users SET totp_last_step = ? WHERE id = ? AND totp_last_step < ?')->execute([$step, $id, $step]);
+    }
+
+    public function setRecoveryCodes(int $id, array $hashes): void
+    {
+        $this->db->prepare('UPDATE users SET recovery_codes = ? WHERE id = ?')->execute([json_encode(array_values($hashes)), $id]);
+    }
+
+    public function resetTotp(int $id): void
+    {
+        $this->db->prepare('UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = 0, recovery_codes = NULL WHERE id = ?')
+            ->execute([$id]);
     }
 
     public function touchLogin(int $id): void

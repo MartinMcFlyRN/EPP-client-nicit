@@ -15,6 +15,7 @@ Pensato per uso interno dello staff del registrar.
 - **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata.
 - **Console XML** (solo admin): invia XML arbitrario sulla sessione autenticata.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
+- **Doppio fattore obbligatorio** (TOTP con QR code) per ogni utente, con codici di recupero e reset da parte di un admin.
 - **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
 - **Cambio password EPP** da UI (`login` con `newPW`): la nuova password viene salvata direttamente in Configurazione.
 
@@ -81,6 +82,22 @@ Se cambiano server, credenziali, IP sorgente o certificati, la sessione EPP aper
 
 **Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/002_settings.sql`.
 Un eventuale `storage/epp-password` continua a essere letto finché non salvi una password da web.
+
+### Doppio fattore (2FA)
+
+È obbligatorio per tutti: al primo accesso, dopo la password, l'utente vede un QR code da inquadrare con un'app TOTP
+(Google o Microsoft Authenticator, 1Password, Bitwarden, FreeOTP…) e conferma con un codice. Solo dopo entra, e riceve
+8 **codici di recupero** monouso da conservare. Le sessioni già aperte di utenti senza 2FA vengono mandate alla configurazione.
+
+- Il segreto TOTP è cifrato nel DB con la stessa chiave della password EPP; i codici di recupero sono salvati come hash.
+- Un codice già usato non viene accettato una seconda volta; dopo 5 codici errati si torna alla password.
+- Il QR code è generato nel browser (`public/assets/vendor/qrcode.js`, libreria qrcode-generator, licenza MIT):
+  il segreto non passa da servizi esterni.
+- **L'orologio del server deve essere sincronizzato** (NTP / `systemd-timesyncd`), altrimenti i codici risultano errati.
+- Da «Account» (clic sul proprio nome in alto) ogni utente rigenera i codici di recupero e cambia la propria password.
+- Telefono perso: un admin usa «Azzera» in Utenti. Se è l'unico admin ad averlo perso: `sudo -u UTENTE_PHP php bin/reset-2fa.php username`.
+
+**Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/003_2fa.sql`.
 
 ### Importare i domini esistenti
 
