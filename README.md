@@ -82,6 +82,24 @@ Se cambiano server, credenziali, IP sorgente o certificati, la sessione EPP aper
 **Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/002_settings.sql`.
 Un eventuale `storage/epp-password` continua a essere letto finché non salvi una password da web.
 
+### Importare i domini esistenti
+
+EPP non ha un comando che elenca i domini del registrar: esporta l'elenco dal portale RAIN del Registro (o da un vostro
+gestionale) in CSV o testo. Da ogni riga viene preso il primo campo che è un nome .it, le altre colonne vengono ignorate.
+Per ogni nome viene eseguito `domain:info` e, se richiesto, `contact:info` di registrante e contatti (ogni contatto una volta sola).
+
+- **Da web:** Domini → «Importa dal Registro». Procede a blocchi finché la pagina è aperta e si può riprendere.
+- **Da riga di comando** (consigliato per molti domini):
+
+```bash
+sudo -u www-data php bin/import-domains.php elenco.csv            # domini + contatti
+sudo -u www-data php bin/import-domains.php elenco.csv --no-contacts --sleep=500
+sudo -u www-data php bin/import-domains.php --resume              # riprende un import interrotto
+```
+
+Se la connessione o il login falliscono, l'import si ferma senza perdere il punto e si riprende con `--resume`
+(o «Riprendi» da web). I domini che risultano di un altro registrar vengono contati a parte.
+
 ### Cron poll
 
 ```
@@ -109,6 +127,5 @@ bin/                    create-user, poll-cron
 - Il codice segue le Linee Guida Tecniche Sincrone v3.x. Prima dell'uso in produzione conviene una prova sul server di test
   (`https://pub-test.nic.it`, impostando `epp.url`) per gli scenari che usate di più.
 - Il Registro accetta il cambio di stato solo da solo in un update: per questo l'interfaccia ha form separati.
-- La cache locale dei domini si riempie con Info e Create. Per importare il portafoglio esistente basta lanciare un Info su ogni dominio,
-  per esempio con uno script che usa `epp()->domainInfo()` e `repo()->saveDomain()`.
+- La cache locale dei domini si riempie con Info, Create e con l'**import** (vedi sotto).
 - Il credito non è esposto da un comando dedicato: le notifiche di credito arrivano nella coda poll.

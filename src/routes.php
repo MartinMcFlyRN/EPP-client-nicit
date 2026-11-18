@@ -589,6 +589,43 @@ return [
 
     // ============================================================ log / console / utenti
 
+    'import' => function () {
+        require_role('operator');
+        $file = storage('import-job.json');
+        if (is_post()) {
+            if (in('cancel') === '1') {
+                @unlink($file);
+                flash('ok', 'Import annullato');
+                redirect('import');
+            }
+            $text = in('names');
+            if (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
+                $text .= "\n" . file_get_contents($_FILES['file']['tmp_name']);
+            }
+            $names = \NicEpp\App\Importer::parseNames($text);
+            if (!$names) {
+                throw new InvalidArgumentException('Nessun nome .it trovato nel testo o nel file');
+            }
+            importer()->start($names, in('contacts') === '1', in('skip_recent') === '1', current_user()['username']);
+            redirect('import');
+        }
+        $job = is_file($file) ? json_decode((string)file_get_contents($file), true) : null;
+        render('import', ['job' => $job]);
+    },
+
+    'import/step' => function () {
+        require_role('operator');
+        @set_time_limit(90);
+        session_write_close(); // non bloccare le altre pagine dell'utente
+        $j = importer()->step(20);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'pos' => $j['pos'] ?? 0, 'total' => count($j['names'] ?? []), 'ok' => $j['ok'] ?? 0,
+            'skipped' => $j['skipped'] ?? 0, 'foreign' => $j['foreign'] ?? 0, 'contacts_ok' => $j['contacts_ok'] ?? 0,
+            'errors' => count($j['errors'] ?? []), 'done' => !empty($j['finished_at']), 'last_error' => $j['last_error'] ?? null,
+        ]);
+    },
+
     'log' => function () {
         require_role('readonly');
         $page = max(1, (int)in('page', 1));

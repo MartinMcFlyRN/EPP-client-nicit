@@ -109,6 +109,11 @@ function epp_cfg_source(string $k): string
     return cfg('epp.' . $k) !== null && cfg('epp.' . $k) !== '' ? 'config' : '';
 }
 
+function importer(): \NicEpp\App\Importer
+{
+    return new \NicEpp\App\Importer(epp(), repo(), storage('import-job.json'), epp_cfg()['clid']);
+}
+
 /** Stato della sessione EPP letto da disco (funziona anche se i parametri EPP non sono ancora configurati). */
 function dnssec_enabled(): bool
 {

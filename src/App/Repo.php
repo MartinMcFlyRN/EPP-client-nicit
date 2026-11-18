@@ -138,6 +138,13 @@ final class Repo
         ]);
     }
 
+    public function domainUpdatedSince(string $name, string $since): bool
+    {
+        $st = $this->db->prepare('SELECT 1 FROM domains WHERE name = ? AND updated_at >= ?');
+        $st->execute([strtolower($name), $since]);
+        return (bool)$st->fetchColumn();
+    }
+
     public function deleteDomain(string $name): void
     {
         $this->db->prepare('DELETE FROM domains WHERE name = ?')->execute([strtolower($name)]);

@@ -5,9 +5,10 @@
     <input type="search" name="q" value="<?= h($q) ?>" placeholder="Cerca per nome o registrante">
     <select name="order" class="shrink" style="width:auto"><option value="name">per nome</option><option value="ex_date" <?= in('order') === 'ex_date' ? 'selected' : '' ?>>per scadenza</option></select>
     <button class="shrink">Cerca</button>
-    <?php if (can('operator')): ?><a class="btn shrink" href="<?= url('domains/create') ?>">Nuovo dominio</a><?php endif; ?>
+    <?php if (can('operator')): ?><a class="btn shrink" href="<?= url('domains/create') ?>">Nuovo dominio</a>
+      <a class="btn sec shrink" href="<?= url('import') ?>">Importa dal Registro</a><?php endif; ?>
   </form>
-  <p class="help">Elenco dalla cache locale: si aggiorna a ogni Info/Create. Per un dominio non in elenco usa Info.</p>
+  <p class="help">Elenco dalla cache locale: si aggiorna a ogni Info/Create. Per un dominio non in elenco usa Info, per caricarne molti usa «Importa dal Registro».</p>
   <table>
     <tr><th>Dominio</th><th>Registrante</th><th>Stato</th><th>Registrar</th><th>Scadenza</th><th>Aggiornato</th></tr>
     <?php foreach ($rows as $d): ?>
