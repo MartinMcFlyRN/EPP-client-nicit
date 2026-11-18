@@ -351,3 +351,38 @@ function generate_contact_id(string $prefix): string
     }
     throw new InvalidArgumentException('Impossibile generare un ID libero: riprova o inseriscilo a mano');
 }
+
+/** Intestazione di colonna cliccabile: alterna crescente/decrescente e mantiene gli altri filtri. */
+function sort_th(string $route, string $col, string $label, string $sort, string $dir, array $keep = []): string
+{
+    $active = $sort === $col;
+    $next = $active && $dir === 'asc' ? 'desc' : 'asc';
+    $arrow = $active ? ($dir === 'asc' ? ' ▲' : ' ▼') : '';
+    return '<th><a class="sort' . ($active ? ' on' : '') . '" href="' . url($route, array_filter($keep, 'strlen') + ['sort' => $col, 'dir' => $next])
+        . '">' . h($label) . $arrow . '</a></th>';
+}
+
+// ---------------------------------------------------------------- retention log
+
+function log_retention_days(): int
+{
+    return (int)settings()->get('log.retention_days', '0');
+}
+
+/**
+ * Cancella i log EPP oltre la retention impostata. Gira al massimo una volta l'ora
+ * (a fine richiesta web e nel cron poll), oppure subito con $force.
+ */
+function purge_logs_if_due(bool $force = false): ?int
+{
+    $days = log_retention_days();
+    if ($days <= 0) {
+        return null;
+    }
+    $f = storage('log-purge.txt');
+    if (!$force && is_file($f) && time() - (int)file_get_contents($f) < 3600) {
+        return null;
+    }
+    @file_put_contents($f, (string)time());
+    return repo()->purgeLogs($days);
+}

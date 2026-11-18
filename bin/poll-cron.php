@@ -37,3 +37,6 @@ try {
     exit(1);
 }
 echo date('c') . " poll: $n messaggi\n";
+if (($p = purge_logs_if_due()) !== null) {
+    echo date('c') . " log: cancellati $p record oltre la retention\n";
+}

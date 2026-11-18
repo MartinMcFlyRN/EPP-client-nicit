@@ -192,7 +192,7 @@ return [
     'dashboard' => function () {
         render('dashboard', [
             'state' => epp_state(),
-            'expiring' => array_slice(array_filter(repo()->domains('', 'ex_date', 200),
+            'expiring' => array_slice(array_filter(repo()->domains('', 'ex_date', 'asc', 200),
                 fn($d) => $d['ex_date'] && strtotime($d['ex_date']) < strtotime('+45 days')), 0, 20),
             'recent' => repo()->logs([], 15),
         ]);
@@ -238,6 +238,17 @@ return [
 
     'settings' => function () {
         require_role('admin');
+        if (is_post() && in('section') === 'logs') {
+            $days = in('retention_days');
+            if ($days !== '' && (!ctype_digit($days) || (int)$days < 1 || (int)$days > 3650)) {
+                throw new InvalidArgumentException('Retention: un numero di giorni tra 1 e 3650, oppure vuoto per non cancellare mai');
+            }
+            settings()->set('log.retention_days', $days === '' ? null : (string)(int)$days, current_user()['username']);
+            $n = purge_logs_if_due(true);
+            flash('ok', $days === '' ? 'Retention disattivata: i log vengono conservati senza limite'
+                : "Retention impostata a $days giorni" . ($n ? " — cancellati $n log più vecchi" : ''));
+            redirect('settings');
+        }
         if (is_post() && in('section') === 'defaults') {
             $by = current_user()['username'];
             $ns = parse_ns_lines(in('def_ns'));
@@ -357,14 +368,17 @@ return [
             }
             redirect('settings');
         }
-        render('settings', ['e' => epp_cfg(), 'meta' => settings()->meta()]);
+        render('settings', ['e' => epp_cfg(), 'meta' => settings()->meta(), 'logStats' => repo()->logStats()]);
     },
 
     // ============================================================ domini
 
     'domains' => function () {
         require_role('readonly');
-        render('domains', ['q' => in('q'), 'rows' => repo()->domains(in('q'), in('order', 'name'))]);
+        $sort = in('sort', 'name');
+        $dir = in('dir', 'asc');
+        render('domains', ['q' => in('q'), 'sort' => $sort, 'dir' => $dir, 'total' => repo()->countDomains(),
+            'rows' => repo()->domains(in('q'), $sort, $dir)]);
     },
 
     'domains/check' => function () {
@@ -605,7 +619,10 @@ return [
 
     'contacts' => function () {
         require_role('readonly');
-        render('contacts', ['q' => in('q'), 'rows' => repo()->contacts(in('q'))]);
+        $sort = in('sort', 'id');
+        $dir = in('dir', 'asc');
+        render('contacts', ['q' => in('q'), 'sort' => $sort, 'dir' => $dir, 'total' => repo()->countContacts(),
+            'rows' => repo()->contacts(in('q'), $sort, $dir)]);
     },
 
     'contacts/search' => function () {

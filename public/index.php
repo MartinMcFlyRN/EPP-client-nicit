@@ -42,6 +42,15 @@ if (is_post()) {
     csrf_check();
 }
 
+// pulizia dei log oltre la retention (al massimo una volta l'ora, a fine richiesta)
+register_shutdown_function(function () {
+    try {
+        purge_logs_if_due();
+    } catch (\Throwable $e) {
+        error_log('purge log: ' . $e->getMessage());
+    }
+});
+
 try {
     $routes[$r]();
 } catch (\NicEpp\Epp\EppException $e) {

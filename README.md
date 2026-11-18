@@ -12,11 +12,12 @@ Pensato per uso interno dello staff del registrar.
 - **DNSSEC** (opzionale, da attivare in Configurazione solo dopo l'accreditamento DNSSEC: se è spento, il login non dichiara i namespace `secDNS`/`extsecDNS`): `secDNS-1.1` in create e update, con calcolo automatico di add e rem rispetto ai DS attuali (accetta anche il formato `IN DS …`).
 - **Contatti**: check, info, create, update e delete con estensione `extcon` (consentForPublishing, nationalityCode, entityType 1–7, regCode).
 - **Poll**: lettura e ack manuali, più un cron che salva tutta la coda in DB e la conferma.
-- **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata.
+- **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata. Retention in giorni impostabile in Configurazione (i più vecchi vengono cancellati in automatico).
 - **Console XML** (solo admin): invia XML arbitrario sulla sessione autenticata.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
 - **Doppio fattore obbligatorio** (TOTP con QR code) per ogni utente, con codici di recupero e reset da parte di un admin.
 - **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
+- **Elenchi domini e contatti ordinabili** cliccando sulle intestazioni di colonna.
 - **Ricerca contatti** per nome, cognome, organizzazione, email o ID nei campi registrante/admin/tech (sui contatti già salvati nel DB: EPP non permette ricerche per nome, quindi importa prima i contatti dal Registro).
 - **ID contatti con prefisso** (da Configurazione): nel nuovo contatto si sceglie solo la parte dopo il prefisso; se vuota viene generato un ID casuale verificato libero con `contact:check`.
 - **Valori predefiniti** in Configurazione: nameserver, admin e tech che precompilano la registrazione e si possono applicare con un clic quando modifichi un dominio.

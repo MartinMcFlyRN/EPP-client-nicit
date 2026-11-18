@@ -90,3 +90,21 @@ $help = [
     Al salvataggio viene controllato che i contatti esistano presso il Registro.</p>
   <p><button>Salva valori predefiniti</button></p>
 </form>
+
+<form method="post" action="<?= url('settings') ?>" class="card" style="max-width:860px" id="logs">
+  <?= csrf_field() ?><input type="hidden" name="section" value="logs">
+  <h2>Log comandi EPP</h2>
+  <dl class="kv">
+    <dt>Record nel log</dt><dd><?= number_format($logStats['count'], 0, ',', '.') ?></dd>
+    <dt>Più vecchio</dt><dd><?= $logStats['oldest'] ? fmt_date($logStats['oldest']) : '—' ?></dd>
+  </dl>
+  <label>Retention (giorni)</label>
+  <div class="row">
+    <input type="text" name="retention_days" inputmode="numeric" value="<?= log_retention_days() ?: '' ?>" placeholder="vuoto = conserva sempre" style="max-width:220px">
+    <button class="shrink">Salva e applica</button>
+  </div>
+  <p class="help">I log più vecchi di questo numero di giorni vengono cancellati: subito al salvataggio, poi in automatico
+    al massimo una volta l'ora (durante l'uso dell'interfaccia e a ogni giro di <code>bin/poll-cron.php</code>).
+    I log contengono l'XML completo di richieste e risposte: valuta quanto storico ti serve per contestazioni con il Registro
+    o con i clienti prima di scendere sotto qualche mese.</p>
+</form>

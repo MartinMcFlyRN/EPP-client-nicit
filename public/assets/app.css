@@ -48,3 +48,4 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .idfield{display:flex;align-items:stretch;border:1px solid #c9ced8;border-radius:7px;overflow:hidden;background:#fff}
 .idfield span{display:flex;align-items:center;padding:0 10px;background:#eef1f6;border-right:1px solid #c9ced8;color:#334}
 .idfield input{border:0;border-radius:0}
+a.sort{color:inherit;text-decoration:none;white-space:nowrap}a.sort:hover{color:var(--acc)}a.sort.on{color:var(--ink)}

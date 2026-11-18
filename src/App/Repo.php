@@ -139,6 +139,29 @@ final class Repo
         return [$w ? 'WHERE ' . implode(' AND ', $w) : '', $p];
     }
 
+    /** Cancella i log più vecchi di $days giorni (a blocchi, per non bloccare la tabella). */
+    public function purgeLogs(int $days): int
+    {
+        $limit = date('Y-m-d H:i:s', strtotime("-$days days"));
+        $tot = 0;
+        do {
+            $ids = $this->db->prepare('SELECT id FROM epp_log WHERE created_at < ? ORDER BY id LIMIT 5000');
+            $ids->execute([$limit]);
+            $list = $ids->fetchAll(PDO::FETCH_COLUMN);
+            if ($list) {
+                $this->db->exec('DELETE FROM epp_log WHERE id IN (' . implode(',', array_map('intval', $list)) . ')');
+                $tot += count($list);
+            }
+        } while (count($list) === 5000);
+        return $tot;
+    }
+
+    public function logStats(): array
+    {
+        $r = $this->db->query('SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM epp_log')->fetch();
+        return ['count' => (int)$r['n'], 'oldest' => $r['oldest']];
+    }
+
     public function log(int $id): ?array
     {
         $st = $this->db->prepare('SELECT * FROM epp_log WHERE id = ?');
@@ -175,13 +198,35 @@ final class Repo
         $this->db->prepare('DELETE FROM domains WHERE name = ?')->execute([strtolower($name)]);
     }
 
-    public function domains(string $q = '', string $order = 'name', int $limit = 500): array
+    public const DOMAIN_SORT = ['name', 'registrant', 'status', 'cl_id', 'ex_date', 'updated_at'];
+    public const CONTACT_SORT = ['id', 'name', 'org', 'email', 'is_registrant', 'updated_at'];
+
+    /** ORDER BY da whitelist; i valori vuoti vanno sempre in fondo. */
+    private static function orderBy(string $col, string $dir, array $allowed, string $tie): string
     {
-        $ord = $order === 'ex_date' ? 'ex_date IS NULL, ex_date ASC' : 'name ASC';
+        $col = in_array($col, $allowed, true) ? $col : $allowed[0];
+        $dir = strtolower($dir) === 'desc' ? 'DESC' : 'ASC';
+        $empty = in_array($col, ['ex_date', 'updated_at', 'is_registrant'], true) ? "$col IS NULL" : "($col IS NULL OR $col = '')";
+        return "$empty ASC, $col $dir" . ($col !== $tie ? ", $tie ASC" : '');
+    }
+
+    public function domains(string $q = '', string $order = 'name', string $dir = 'asc', int $limit = 1000): array
+    {
+        $ord = self::orderBy($order, $dir, self::DOMAIN_SORT, 'name');
         $st = $this->db->prepare("SELECT name, registrant, status, cl_id, ex_date, updated_at FROM domains
             WHERE name LIKE ? OR registrant LIKE ? ORDER BY $ord LIMIT " . (int)$limit);
         $st->execute(["%$q%", "%$q%"]);
         return $st->fetchAll();
+    }
+
+    public function countDomains(): int
+    {
+        return (int)$this->db->query('SELECT COUNT(*) FROM domains')->fetchColumn();
+    }
+
+    public function countContacts(): int
+    {
+        return (int)$this->db->query('SELECT COUNT(*) FROM contacts')->fetchColumn();
     }
 
     public function domainsByContact(string $id): array
@@ -209,10 +254,11 @@ final class Repo
         $this->db->prepare('DELETE FROM contacts WHERE id = ?')->execute([$id]);
     }
 
-    public function contacts(string $q = '', int $limit = 500): array
+    public function contacts(string $q = '', string $order = 'id', string $dir = 'asc', int $limit = 1000): array
     {
-        $st = $this->db->prepare('SELECT id, name, org, email, is_registrant, updated_at FROM contacts
-            WHERE id LIKE ? OR name LIKE ? OR org LIKE ? OR email LIKE ? ORDER BY id LIMIT ' . (int)$limit);
+        $ord = self::orderBy($order, $dir, self::CONTACT_SORT, 'id');
+        $st = $this->db->prepare("SELECT id, name, org, email, is_registrant, updated_at FROM contacts
+            WHERE id LIKE ? OR name LIKE ? OR org LIKE ? OR email LIKE ? ORDER BY $ord LIMIT " . (int)$limit);
         $st->execute(["%$q%", "%$q%", "%$q%", "%$q%"]);
         return $st->fetchAll();
     }
