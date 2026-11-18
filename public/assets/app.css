@@ -45,3 +45,6 @@ details summary{cursor:pointer;color:var(--acc);margin:6px 0}
 @keyframes fillflash{from{background:#fdf6d8;border-color:#e0c25a}to{background:#fff}}
 .filled{animation:fillflash 1.2s ease-out}
 button[disabled]{opacity:.5;cursor:not-allowed}
+.idfield{display:flex;align-items:stretch;border:1px solid #c9ced8;border-radius:7px;overflow:hidden;background:#fff}
+.idfield span{display:flex;align-items:center;padding:0 10px;background:#eef1f6;border-right:1px solid #c9ced8;color:#334}
+.idfield input{border:0;border-radius:0}

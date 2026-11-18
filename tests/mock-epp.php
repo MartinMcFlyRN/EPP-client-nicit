@@ -75,6 +75,15 @@ if ($cmd === 'create' && $isDomain) {
 if ($cmd === 'transfer') {
     resp(1001, 'Command completed successfully; action pending', '<resData><domain:trnData><domain:name>' . $xp->evaluate('string(//*[local-name()="name"])') . '</domain:name><domain:trStatus>pending</domain:trStatus><domain:reID>TEST-REG</domain:reID><domain:reDate>2026-11-18T01:00:00Z</domain:reDate><domain:acID>OTHER-REG</domain:acID><domain:acDate>2026-11-19T01:00:00Z</domain:acDate></domain:trnData></resData>');
 }
+if ($cmd === 'check') { // contact: i primi N id visti risultano occupati (N in taken.txt)
+    $f = __DIR__ . '/taken.txt'; $left = is_file($f) ? (int)file_get_contents($f) : 0; $cd = '';
+    foreach ($xp->query('//*[local-name()="id"]') as $n) {
+        $taken = $left > 0 || str_contains($n->textContent, 'TAKEN'); if ($left > 0) $left--;
+        $cd .= '<contact:cd><contact:id avail="' . ($taken ? 'false' : 'true') . '">' . $n->textContent . '</contact:id></contact:cd>';
+    }
+    file_put_contents($f, (string)$left);
+    resp(1000, 'Command completed successfully', '<resData><contact:chkData>' . $cd . '</contact:chkData></resData>');
+}
 if ($cmd === 'info') { // contact
     $id = $xp->evaluate('string(//*[local-name()="id"])');
     resp(1000, 'Command completed successfully', '<resData><contact:infData><contact:id>' . $id . '</contact:id><contact:roid>C1-ITNIC</contact:roid><contact:status s="ok"/>'

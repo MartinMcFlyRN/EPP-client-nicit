@@ -305,3 +305,49 @@ function fill_button(string $target, string $value, string $label): string
     return '<span class="shrink small mute"><button type="button" class="sec small" disabled title="Non impostato in Configurazione">'
         . h($label) . '</button>' . $hint . '</span>';
 }
+
+// ---------------------------------------------------------------- ID contatti
+
+/** Prefisso degli ID contatto: da Configurazione, altrimenti il prefisso clTRID seguito da "-". */
+function contact_prefix(): string
+{
+    $p = (string)settings()->get('defaults.contact_prefix', '');
+    if ($p === '') {
+        $p = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)(epp_cfg()['tridPrefix'] ?? ''))) ;
+        $p = $p !== '' ? substr($p, 0, 9) . '-' : '';
+    }
+    return $p;
+}
+
+/**
+ * Genera un ID contatto casuale con il prefisso dato, verificando con contact:check
+ * che sia libero presso il Registro (e assente nella cache locale).
+ */
+function generate_contact_id(string $prefix): string
+{
+    $len = max(4, min(8, 16 - strlen($prefix)));
+    $alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for ($round = 0; $round < 3; $round++) {
+        $cand = [];
+        while (count($cand) < 5) {
+            $s = '';
+            for ($i = 0; $i < $len; $i++) {
+                $s .= $alpha[random_int(0, strlen($alpha) - 1)];
+            }
+            $id = $prefix . $s;
+            if (!repo()->contact($id)) {
+                $cand[$id] = true;
+            }
+        }
+        $r = epp()->contactCheck(array_keys($cand));
+        if (!$r->ok()) {
+            throw \NicEpp\Epp\EppException::fromResponse('Verifica disponibilità ID non riuscita', $r);
+        }
+        foreach ($r->contactCheck() as $c) {
+            if ($c['avail']) {
+                return $c['id'];
+            }
+        }
+    }
+    throw new InvalidArgumentException('Impossibile generare un ID libero: riprova o inseriscilo a mano');
+}

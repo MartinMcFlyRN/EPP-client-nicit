@@ -244,6 +244,11 @@ return [
             if ($ns && (count($ns) < 2 || count($ns) > 6)) {
                 throw new InvalidArgumentException('Nameserver predefiniti: da 2 a 6 (oppure nessuno)');
             }
+            $cpref = strtoupper(in('def_contact_prefix'));
+            if ($cpref !== '' && !preg_match('/^[A-Z0-9-]{1,10}$/', $cpref)) {
+                throw new InvalidArgumentException('Prefisso ID contatti: da 1 a 10 caratteri tra lettere, numeri e trattino');
+            }
+            settings()->set('defaults.contact_prefix', $cpref, $by);
             $admin = strtoupper(in('def_admin'));
             $techs = split_list(strtoupper(in('def_techs')));
             foreach (array_merge($admin !== '' ? [$admin] : [], $techs) as $id) {
@@ -632,6 +637,25 @@ return [
     'contacts/create' => function () use ($contactFromPost) {
         require_role('operator');
         if (is_post()) {
+            // ID = prefisso da Configurazione + parte scelta; se la parte è vuota viene generata e verificata libera
+            $prefix = contact_prefix();
+            $suffix = strtoupper(in('id_suffix'));
+            if ($suffix !== '') {
+                if (!preg_match('/^[A-Z0-9-]+$/', $suffix)) {
+                    throw new InvalidArgumentException('ID contatto: usa solo lettere, numeri e trattino');
+                }
+                $_POST['id'] = $prefix . $suffix;
+                if (strlen($_POST['id']) < 3 || strlen($_POST['id']) > 16) {
+                    throw new InvalidArgumentException('ID contatto: prefisso + parte scelta devono stare tra 3 e 16 caratteri (ora ' . strlen($_POST['id']) . ')');
+                }
+            } else {
+                foreach (['name' => 'Nome', 'city' => 'Città', 'email' => 'Email'] as $k => $l) {
+                    if (in($k) === '') { // evita di generare un ID per un modulo incompleto
+                        throw new InvalidArgumentException("Campo obbligatorio mancante: $l");
+                    }
+                }
+                $_POST['id'] = generate_contact_id($prefix);
+            }
             $c = $contactFromPost();
             $c['authInfo'] = gen_authinfo();
             $cmd = epp()->commands();

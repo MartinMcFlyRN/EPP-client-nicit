@@ -8,8 +8,19 @@ $st = $c['street'] ?? [];
   <?= csrf_field() ?>
   <div class="row">
     <div><label>ID contatto</label>
-      <input type="text" name="id" value="<?= h($c['id'] ?? '') ?>" required maxlength="16" <?= $edit ? 'readonly' : '' ?> placeholder="es. PWEB-ROSSI01">
-      <?php if (!$edit): ?><p class="help">3–16 caratteri, univoco nel Registro. Conviene un prefisso del registrar.</p><?php endif; ?></div>
+      <?php if ($edit): ?>
+        <input type="text" name="id" value="<?= h($c['id'] ?? '') ?>" readonly>
+      <?php else:
+        $pref = contact_prefix();
+        $suf = (isset($c['id']) && str_starts_with((string)$c['id'], $pref)) ? substr((string)$c['id'], strlen($pref)) : '';
+      ?>
+        <div class="idfield"><?php if ($pref !== ''): ?><span class="mono"><?= h($pref) ?></span><?php endif; ?>
+          <input type="text" name="id_suffix" id="id_suffix" value="<?= h($suf) ?>" maxlength="<?= 16 - strlen($pref) ?>"
+                 pattern="[A-Za-z0-9-]*" placeholder="vuoto = generato automaticamente" style="text-transform:uppercase"></div>
+        <p class="help">Lascia vuoto per un ID casuale libero presso il Registro, oppure scrivi la parte dopo il prefisso
+          (max <?= 16 - strlen($pref) ?> caratteri: lettere, numeri, trattino).
+          <?php if (can('admin')): ?>Il prefisso si imposta in <a href="<?= url('settings') ?>#defaults">Configurazione</a>.<?php endif; ?></p>
+      <?php endif; ?></div>
     <div><label>Nome e cognome</label><input type="text" name="name" value="<?= h($c['name'] ?? '') ?>" required></div>
   </div>
   <label>Organizzazione</label><input type="text" name="org" value="<?= h($c['org'] ?? '') ?>">

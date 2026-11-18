@@ -76,6 +76,11 @@ $help = [
   <label>Nameserver predefiniti (2–6, uno per riga: host [ip...])</label>
   <textarea name="def_ns" placeholder="ns1.pensareweb.it 192.0.2.10&#10;ns2.pensareweb.it 192.0.2.11"><?= h($def['ns']) ?></textarea>
   <p class="help">Glue IP solo se il nameserver sta sotto il dominio che registri; per i vostri nameserver su un altro dominio basta il nome.</p>
+  <label>Prefisso ID contatti</label>
+  <input type="text" name="def_contact_prefix" value="<?= h((string)settings()->get('defaults.contact_prefix', '')) ?>" maxlength="10"
+         placeholder="<?= h(contact_prefix() ?: 'es. PWEB-') ?>" style="max-width:220px;text-transform:uppercase">
+  <p class="help">Messo davanti a ogni nuovo ID contatto (es. <code>PWEB-</code> → <code>PWEB-ROSSI01</code> o <code>PWEB-K7Q2M9XA</code>).
+    Se vuoto si usa il prefisso clTRID seguito da un trattino. Gli ID nel Registro sono lunghi da 3 a 16 caratteri.</p>
   <div class="row">
     <div><label>Admin predefinito (ID)</label><input type="text" name="def_admin" value="<?= h($def['admin']) ?>" data-contact-search="any" placeholder="ID, nome o organizzazione"></div>
     <div><label>Tech predefiniti (ID, uno per riga, max 6)</label><textarea name="def_techs" id="def_techs" style="min-height:60px"><?= h($def['techs']) ?></textarea>
