@@ -74,6 +74,7 @@ const EPP_FIELDS = [
     'timeout'         => ['Timeout richiesta (s)', 'int'],
     'connect_timeout' => ['Timeout connessione (s)', 'int'],
     'idle_timeout'    => ['Relogin dopo inattività (s)', 'int'],
+    'dnssec'          => ['DNSSEC (secDNS-1.1)', 'bool'],
 ];
 
 /** Configurazione EPP effettiva: DB > (solo password) storage/epp-password > config.php */
@@ -83,12 +84,13 @@ function epp_cfg(): array
     foreach (array_keys(EPP_FIELDS) as $k) {
         $v = settings()->get('epp.' . $k);
         if ($v !== null) {
-            $e[$k] = EPP_FIELDS[$k][1] === 'int' ? (int)$v : $v;
+            $e[$k] = match (EPP_FIELDS[$k][1]) { 'int' => (int)$v, 'bool' => $v === '1', default => $v };
         }
     }
     if (!settings()->has('epp.password') && is_file(storage('epp-password'))) {
         $e['password'] = trim((string)file_get_contents(storage('epp-password'))); // compatibilità versioni precedenti
     }
+    $e['dnssec'] = !empty($e['dnssec']);
     return $e + ['url' => '', 'clid' => '', 'password' => '', 'tridPrefix' => 'WEB'];
 }
 
@@ -101,10 +103,18 @@ function epp_cfg_source(string $k): string
     if ($k === 'password' && is_file(storage('epp-password'))) {
         return 'file';
     }
+    if (EPP_FIELDS[$k][1] === 'bool') {
+        return 'config';
+    }
     return cfg('epp.' . $k) !== null && cfg('epp.' . $k) !== '' ? 'config' : '';
 }
 
 /** Stato della sessione EPP letto da disco (funziona anche se i parametri EPP non sono ancora configurati). */
+function dnssec_enabled(): bool
+{
+    return epp_cfg()['dnssec'];
+}
+
 function epp_state(): array
 {
     $f = storage('epp-state.json');
@@ -123,7 +133,7 @@ function epp(bool $fresh = false): Client
         throw new \NicEpp\Epp\EppException('Parametri EPP non configurati: impostali in Configurazione');
     }
     $t = new Transport($e['url'], storage('epp-cookies.txt'), $e);
-    $c = new Client($t, new Commands($e['tridPrefix'] ?? 'WEB'), [
+    $c = new Client($t, new Commands($e['tridPrefix'] ?? 'WEB', $e['dnssec']), [
         'clid' => $e['clid'],
         'password' => (string)$e['password'],
         'state_file' => storage('epp-state.json'),

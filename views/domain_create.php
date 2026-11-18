@@ -13,8 +13,10 @@
   <label>Nameserver (2–6, uno per riga: host [ip...])</label>
   <textarea name="ns" placeholder="ns1.esempio.it 192.0.2.1&#10;ns2.provider.net"><?= h($f['ns'] ?? '') ?></textarea>
   <p class="help">I DNS devono essere già configurati correttamente: il Registro esegue i controlli tecnici al momento della create.</p>
+  <?php if (dnssec_enabled()): ?>
   <label>Record DS (opzionale)</label>
   <textarea name="ds" style="min-height:50px" placeholder="12345 13 2 ABCDEF..."><?= h($f['ds'] ?? '') ?></textarea>
+  <?php endif; ?>
   <label>AuthInfo</label>
   <div class="row"><input type="text" id="ai" name="authinfo" value="<?= h($f['authinfo'] ?? '') ?>"><button class="sec shrink" data-gen="ai">Genera</button></div>
   <p class="help">Durata: 1 anno (unica consentita dal Registro .it).</p>

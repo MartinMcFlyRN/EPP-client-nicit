@@ -25,7 +25,12 @@ final class Commands
 
     private string $lastTrid = '';
 
-    public function __construct(private string $tridPrefix = 'WEB') {}
+    public function __construct(private string $tridPrefix = 'WEB', private bool $dnssec = false) {}
+
+    public function dnssecEnabled(): bool
+    {
+        return $this->dnssec;
+    }
 
     public static function e(?string $s): string
     {
@@ -76,7 +81,11 @@ final class Commands
             . '<objURI>' . self::NS_CONTACT . '</objURI>'
             . '<objURI>' . self::NS_DOMAIN . '</objURI>'
             . '<svcExtension>';
-        foreach ([self::NS_EXTEPP, self::NS_EXTCON, self::NS_EXTDOM, self::NS_RGP, self::NS_SECDNS, self::NS_EXTSECDNS] as $u) {
+        $ext = [self::NS_EXTEPP, self::NS_EXTCON, self::NS_EXTDOM, self::NS_RGP];
+        if ($this->dnssec) { // solo per registrar accreditati DNSSEC, altrimenti il Registro rifiuta il login (2306 / 10001)
+            array_push($ext, self::NS_SECDNS, self::NS_EXTSECDNS);
+        }
+        foreach ($ext as $u) {
             $x .= '<extURI>' . $u . '</extURI>';
         }
         $x .= '</svcExtension></svcs></login>';
@@ -141,7 +150,7 @@ final class Commands
             . '</domain:create></create>';
 
         $ext = '';
-        if ($ds) {
+        if ($ds && $this->dnssec) {
             $ext = '<secDNS:create xmlns:secDNS="' . self::NS_SECDNS . '">' . $this->dsXml($ds) . '</secDNS:create>';
         }
         return $this->command($x, $ext);
@@ -185,7 +194,7 @@ final class Commands
         $x .= '</domain:update></update>';
 
         $ext = '';
-        if ($secDns) {
+        if ($secDns && $this->dnssec) {
             $s = '';
             if (!empty($secDns['remAll'])) {
                 $s .= '<secDNS:rem><secDNS:all>true</secDNS:all></secDNS:rem>';

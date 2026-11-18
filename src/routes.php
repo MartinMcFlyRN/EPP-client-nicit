@@ -159,6 +159,7 @@ return [
                                   || preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?(/.*)?$#i', $v),
                         'ip'   => (bool)filter_var($v, FILTER_VALIDATE_IP),
                         'int'  => ctype_digit($v) && (int)$v >= 1 && (int)$v <= 86400,
+                        'bool' => in_array($v, ['0', '1'], true),
                         'file' => is_file($v) && is_readable($v),
                         'text' => (bool)preg_match('/^[\w.-]{1,64}$/', $v),
                         default => true,
@@ -173,10 +174,18 @@ return [
 
             // Se cambiano server o credenziali, chiude la sessione aperta con i vecchi parametri
             $old = epp_cfg();
-            $sessionKeys = ['url', 'clid', 'password', 'source_ip', 'ca_file', 'client_cert', 'client_key'];
+            $sessionKeys = ['url', 'clid', 'password', 'source_ip', 'ca_file', 'client_cert', 'client_key', 'dnssec'];
             $changed = false;
             foreach ($sessionKeys as $k) {
-                if (array_key_exists($k, $new) && (string)($new[$k] ?? cfg("epp.$k", '')) !== (string)($old[$k] ?? '')) {
+                if (!array_key_exists($k, $new)) {
+                    continue;
+                }
+                $nv = $new[$k] ?? cfg("epp.$k", '');
+                $ov = $old[$k] ?? '';
+                if ($k === 'dnssec') {
+                    [$nv, $ov] = [in_array($nv, ['1', 1, true], true) ? '1' : '0', $ov ? '1' : '0'];
+                }
+                if ((string)$nv !== (string)$ov) {
                     $changed = true;
                 }
             }
@@ -255,7 +264,7 @@ return [
             $name = normalize_domain(in('name'));
             $ns = parse_ns_lines(in('ns'));
             $techs = split_list(strtoupper(in('techs')));
-            $ds = parse_ds_lines(in('ds'));
+            $ds = dnssec_enabled() ? parse_ds_lines(in('ds')) : [];
             $auth = in('authinfo') ?: gen_authinfo();
             if ($name === '' || in('registrant') === '' || in('admin') === '' || !$techs) {
                 throw new InvalidArgumentException('Nome, registrante, admin e almeno un tech sono obbligatori');
@@ -356,6 +365,9 @@ return [
                 break;
 
             case 'dnssec':
+                if (!dnssec_enabled()) {
+                    throw new InvalidArgumentException('DNSSEC non abilitato: attivalo in Configurazione dopo l\'accreditamento');
+                }
                 $new = parse_ds_lines(in('ds'));
                 $curK = array_combine(array_map('ds_key', $d['ds']), $d['ds']) ?: [];
                 $newK = $new ? array_combine(array_map('ds_key', $new), $new) : [];

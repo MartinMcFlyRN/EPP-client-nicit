@@ -14,6 +14,7 @@ $help = [
     'ca_file' => 'Percorso assoluto sul server. Vuoto = CA di sistema.',
     'client_cert' => 'Solo se richiesto: percorso assoluto del certificato PEM.',
     'client_key' => 'Percorso assoluto della chiave PEM del certificato client.',
+    'dnssec' => 'Attivalo solo dopo l\'accreditamento DNSSEC presso il Registro: se attivo, il login dichiara i namespace secDNS-1.1 ed extsecDNS-1.0 e compaiono le funzioni DS. Senza accreditamento il login fallisce con 2306 / 10001.',
     'idle_timeout' => 'Dopo quanti secondi senza comandi rifare il login preventivamente. Tienilo sotto il timeout di sessione del Registro.',
 ];
 ?>
@@ -33,8 +34,13 @@ $help = [
     <div style="margin-bottom:6px">
       <label><?= h($label) ?> <?= $src($k) ?></label>
       <div class="row">
+        <?php if ($type === 'bool'): ?>
+          <input type="hidden" name="<?= $k ?>" value="0">
+          <label style="font-weight:400;margin:0"><input type="checkbox" name="<?= $k ?>" value="1" <?= epp_cfg()[$k] ? 'checked' : '' ?>> abilitato</label>
+        <?php else: ?>
         <input type="<?= $type === 'secret' ? 'password' : 'text' ?>" name="<?= $k ?>" value="<?= h($val) ?>"
                placeholder="<?= h($ph) ?>" <?= $type === 'secret' ? 'autocomplete="new-password"' : '' ?>>
+        <?php endif; ?>
         <?php if ($isWeb): ?>
           <label class="shrink" style="font-weight:400;margin:0"><input type="checkbox" name="reset_<?= $k ?>" value="1"> usa config.php</label>
         <?php endif; ?>
@@ -55,6 +61,7 @@ $help = [
     <dt>Server</dt><dd class="mono"><?= h($e['url'] ?: '—') ?></dd>
     <dt>clID</dt><dd class="mono"><?= h($e['clid'] ?: '—') ?></dd>
     <dt>IP sorgente</dt><dd class="mono"><?= h(($e['source_ip'] ?? '') ?: 'default') ?></dd>
+    <dt>DNSSEC</dt><dd><?= $e['dnssec'] ? '<span class="badge ok">abilitato</span>' : '<span class="badge">disabilitato</span>' ?></dd>
     <dt>Relogin dopo</dt><dd><?= (int)($e['idle_timeout'] ?? 600) ?> s</dd>
   </dl>
   <p class="help">La password è cifrata nel DB con la chiave <code><?= cfg('app.secret') ? 'app.secret di config.php' : 'storage/app.key' ?></code>: includila nei backup, senza la chiave andrà reinserita.</p>

@@ -96,6 +96,7 @@ $op = can('operator') && $ours;
       <p class="help">Il nuovo registrante deve esistere con i dati di registrante completi; se non è persona fisica il consenso alla pubblicazione deve essere true.</p>
       <button>Cambia registrante</button></form>
   </div>
+<?php if (dnssec_enabled()): ?>
   <div class="card">
     <h2>DNSSEC (record DS)</h2>
     <?= $form('dnssec') ?>
@@ -103,6 +104,7 @@ $op = can('operator') && $ours;
       <p class="help">Una riga per DS: <code>keyTag alg digestType digest</code> (accetta anche il formato <code>esempio.it. IN DS 12345 13 2 ABCD…</code>). Svuota per rimuovere tutti i DS.</p>
       <button>Aggiorna DS</button></form>
   </div>
+<?php endif; ?>
   <div class="card danger-zone">
     <h2>Cancellazione / restore</h2>
     <form method="post" action="<?= url('domains/delete') ?>" data-confirm="Confermi la cancellazione di <?= h($name) ?>?">

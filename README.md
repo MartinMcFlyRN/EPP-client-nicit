@@ -9,7 +9,7 @@ Pensato per uso interno dello staff del registrar.
   update di NS, contatti admin/tech, stati client (`clientHold`, `clientTransferProhibited`, …), AuthInfo, delete, restore (rgp).
 - **Modifica registrante**: update con `chg/registrant` e nuovo AuthInfo obbligatorio, con admin opzionale.
 - **Trasferimenti**: request, query, cancel, approve, reject, oltre al **Transfer-Trade** (`extdom:trade`, cambio registrante durante il trasferimento).
-- **DNSSEC**: `secDNS-1.1` in create e update, con calcolo automatico di add e rem rispetto ai DS attuali (accetta anche il formato `IN DS …`).
+- **DNSSEC** (opzionale, da attivare in Configurazione solo dopo l'accreditamento DNSSEC: se è spento, il login non dichiara i namespace `secDNS`/`extsecDNS`): `secDNS-1.1` in create e update, con calcolo automatico di add e rem rispetto ai DS attuali (accetta anche il formato `IN DS …`).
 - **Contatti**: check, info, create, update e delete con estensione `extcon` (consentForPublishing, nationalityCode, entityType 1–7, regCode).
 - **Poll**: lettura e ack manuali, più un cron che salva tutta la coda in DB e la conferma.
 - **Audit log**: ogni comando con XML di richiesta e risposta, utente, clTRID/svTRID e durata. La password di login è sempre mascherata.

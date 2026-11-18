@@ -32,6 +32,8 @@ return [
         // Dopo quanti secondi di inattività rifare il login preventivamente.
         // Tienilo sotto il timeout di sessione del Registro.
         'idle_timeout' => 600,
+        // true solo se il registrar è accreditato DNSSEC presso il Registro (altrimenti il login fallisce con 2306/10001)
+        'dnssec'       => false,
         'storage_dir'  => __DIR__ . '/storage',
     ],
     'poll' => [
