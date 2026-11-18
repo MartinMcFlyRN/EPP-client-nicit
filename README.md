@@ -92,9 +92,9 @@ Per ogni nome viene eseguito `domain:info` e, se richiesto, `contact:info` di re
 - **Da riga di comando** (consigliato per molti domini):
 
 ```bash
-sudo -u www-data php bin/import-domains.php elenco.csv            # domini + contatti
-sudo -u www-data php bin/import-domains.php elenco.csv --no-contacts --sleep=500
-sudo -u www-data php bin/import-domains.php --resume              # riprende un import interrotto
+sudo -u UTENTE_PHP php bin/import-domains.php elenco.csv            # domini + contatti
+sudo -u UTENTE_PHP php bin/import-domains.php elenco.csv --no-contacts --sleep=500
+sudo -u UTENTE_PHP php bin/import-domains.php --resume              # riprende un import interrotto
 ```
 
 Se la connessione o il login falliscono, l'import si ferma senza perdere il punto e si riprende con `--resume`
@@ -107,6 +107,23 @@ Se la connessione o il login falliscono, l'import si ferma senza perdere il punt
 ```
 
 Il cron deve girare con lo **stesso utente di PHP-FPM**, perché condivide cookie jar e lock in `storage/`.
+
+## Problemi comuni
+
+**`2002 Command use error — [4015] First request on a new session was not Login`**
+Il Registro ha ricevuto un comando senza il cookie della sessione aperta col login. Quasi sempre i file in `storage/`
+appartengono a un utente diverso da quello di PHP: ad esempio sono stati creati da root lanciando a mano `bin/import-domains.php`
+o `bin/poll-cron.php`. Su Plesk PHP gira con l'utente dell'abbonamento, non con `www-data`. Il client ora lo segnala con un
+messaggio esplicito che indica il comando `chown` da eseguire. Per sistemare:
+
+```bash
+chown -R UTENTE_PHP: storage/      # www-data, oppure l'utente dell'abbonamento Plesk
+chmod 700 storage
+```
+
+Lancia script e cron sempre con lo stesso utente (`sudo -u UTENTE_PHP php bin/...`).
+
+**Password EPP non decifrabile**: la chiave `storage/app.key` (o `app.secret`) è cambiata. Reinserisci la password in Configurazione.
 
 ## Struttura
 

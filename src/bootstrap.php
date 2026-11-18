@@ -82,7 +82,12 @@ function epp_cfg(): array
 {
     $e = (array)cfg('epp', []);
     foreach (array_keys(EPP_FIELDS) as $k) {
-        $v = settings()->get('epp.' . $k);
+        try {
+            $v = settings()->get('epp.' . $k);
+        } catch (\RuntimeException $ex) { // password non decifrabile (chiave cambiata): non bloccare l'interfaccia
+            $GLOBALS['EPP_CFG_ERROR'] = $ex->getMessage();
+            $v = null;
+        }
         if ($v !== null) {
             $e[$k] = match (EPP_FIELDS[$k][1]) { 'int' => (int)$v, 'bool' => $v === '1', default => $v };
         }
@@ -134,6 +139,9 @@ function epp(bool $fresh = false): Client
         return $c;
     }
     $e = epp_cfg();
+    if (!empty($GLOBALS['EPP_CFG_ERROR'])) {
+        throw new \NicEpp\Epp\EppException($GLOBALS['EPP_CFG_ERROR']);
+    }
     if ($e['url'] === '' || $e['clid'] === '') {
         throw new \NicEpp\Epp\EppException('Parametri EPP non configurati: impostali in Configurazione');
     }

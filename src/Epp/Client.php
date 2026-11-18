@@ -50,7 +50,10 @@ final class Client
 
     private function saveState(array $s): void
     {
-        file_put_contents($this->cfg['state_file'], json_encode($s), LOCK_EX);
+        if (@file_put_contents($this->cfg['state_file'], json_encode($s), LOCK_EX) === false) {
+            Transport::assertWritable($this->cfg['state_file']);
+            throw new EppException('Impossibile scrivere ' . $this->cfg['state_file']);
+        }
     }
 
     private function touch(?Response $r = null): void
@@ -78,6 +81,7 @@ final class Client
         if ($this->lockDepth++ > 0) {
             return;
         }
+        Transport::assertWritable($this->cfg['lock_file']);
         $this->lockFh = fopen($this->cfg['lock_file'], 'c');
         if (!$this->lockFh || !flock($this->lockFh, LOCK_EX)) {
             throw new EppException('Impossibile acquisire il lock della sessione EPP');
@@ -193,6 +197,14 @@ final class Client
                 $this->markLoggedOut();
                 $this->login();
                 $r = $this->raw($cmd, $obj, $build());
+                if ($this->sessionLost($r)) {
+                    $this->markLoggedOut();
+                    throw EppException::fromResponse(
+                        'Il server non riconosce la sessione nemmeno subito dopo un login riuscito: il cookie di sessione '
+                        . ($this->t->hasSessionCookie() ? 'viene inviato ma non è accettato (proxy o bilanciatore in mezzo?)' : 'non è stato ricevuto o salvato'),
+                        $r
+                    );
+                }
             }
             $this->touch($r);
             return $r;

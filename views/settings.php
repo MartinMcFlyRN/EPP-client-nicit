@@ -19,6 +19,7 @@ $help = [
 ];
 ?>
 <h1>Configurazione EPP</h1>
+<?php if (!empty($GLOBALS['EPP_CFG_ERROR'])): ?><div class="flash err"><?= h($GLOBALS['EPP_CFG_ERROR']) ?></div><?php endif; ?>
 <p class="help">I valori salvati qui hanno precedenza su <code>config.php</code>. Un campo vuoto (o «usa config.php») torna al valore del file.
 <?php if ($meta['at']): ?>Ultima modifica: <?= fmt_date($meta['at']) ?><?= $meta['by'] ? ' · ' . h($meta['by']) : '' ?>.<?php endif; ?></p>
 
