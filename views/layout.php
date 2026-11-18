@@ -54,5 +54,10 @@ document.querySelectorAll('[data-toggle]').forEach(c => {
 document.querySelectorAll('[data-fill]').forEach(b => b.addEventListener('click', () => { document.getElementById(b.dataset.fill).value = b.dataset.value; }));
 document.querySelectorAll('form[data-confirm]').forEach(f => f.addEventListener('submit', e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); }));
 </script>
+<?php if ($u): ?>
+<script>window.CONTACT_SEARCH = <?= json_encode(['url' => url('contacts/search'), 'createUrl' => can('operator') ? url('contacts/create', ['registrant' => 1]) : null,
+  'importUrl' => can('operator') ? url('import') : null]) ?>;</script>
+<script src="<?= h(rtrim((string)cfg('app.base_url', ''), '/')) ?>/assets/contact-search.js"></script>
+<?php endif; ?>
 </body>
 </html>

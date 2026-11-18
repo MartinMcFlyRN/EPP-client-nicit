@@ -14,7 +14,7 @@
   <label>AuthInfo del dominio</label><input type="text" name="authinfo" value="<?= h($f['authinfo'] ?? '') ?>">
   <label style="font-weight:400;margin-top:14px"><input type="checkbox" name="trade" value="1" data-toggle="tradebox" <?= !empty($f['trade']) ? 'checked' : '' ?>> Transfer-Trade: cambia anche il registrante</label>
   <div id="tradebox">
-    <label>Nuovo registrante (ID)</label><input type="text" name="new_registrant" value="<?= h($f['new_registrant'] ?? '') ?>">
+    <label>Nuovo registrante (ID)</label><input type="text" name="new_registrant" value="<?= h($f['new_registrant'] ?? '') ?>" data-contact-search="registrant" placeholder="ID, nome, cognome o organizzazione">
     <label>Nuovo AuthInfo</label>
     <div class="row"><input type="text" id="nai" name="new_authinfo" value="<?= h($f['new_authinfo'] ?? '') ?>" placeholder="vuoto = generato"><button class="sec shrink" data-gen="nai">Genera</button></div>
   </div>

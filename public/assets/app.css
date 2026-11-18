@@ -37,3 +37,8 @@ details summary{cursor:pointer;color:var(--acc);margin:6px 0}
 .avail{color:var(--ok);font-weight:700}.taken{color:var(--bad);font-weight:700}
 .danger-zone{border-color:#efc1bc}
 .pager{display:flex;gap:8px;margin-top:10px}
+.ac-wrap{position:relative}
+.ac-box{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid #c9ced8;border-top:0;border-radius:0 0 8px 8px;box-shadow:0 8px 20px rgba(20,34,58,.12);max-height:320px;overflow:auto}
+.ac-item{padding:7px 10px;cursor:pointer;border-top:1px solid var(--line)}.ac-item:first-child{border-top:0}
+.ac-item.on,.ac-item:hover{background:#eef3fb}
+.ac-empty{padding:10px;font-size:13px;color:var(--mute)}

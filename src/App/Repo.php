@@ -217,6 +217,43 @@ final class Repo
         return $st->fetchAll();
     }
 
+    /**
+     * Ricerca per l'autocompletamento: ogni parola deve comparire in ID, nome, organizzazione o email
+     * (es. "mario rossi" o "pensareweb srl"). Solo cache locale: EPP non ha una ricerca per nome.
+     */
+    public function searchContacts(string $q, bool $onlyRegistrants = false, int $limit = 15): array
+    {
+        $w = [];
+        $p = [];
+        foreach (array_slice(preg_split('/\s+/', trim($q)), 0, 5) as $word) {
+            if ($word === '') {
+                continue;
+            }
+            $like = '%' . addcslashes($word, '%_\\') . '%';
+            $w[] = '(id LIKE ? OR name LIKE ? OR org LIKE ? OR email LIKE ?)';
+            array_push($p, $like, $like, $like, $like);
+        }
+        if (!$w) {
+            return [];
+        }
+        if ($onlyRegistrants) {
+            $w[] = 'is_registrant = 1';
+        }
+        $st = $this->db->prepare('SELECT id, name, org, email, is_registrant, info_json FROM contacts WHERE ' . implode(' AND ', $w)
+            . ' ORDER BY (id = ?) DESC, name LIMIT ' . (int)$limit);
+        $st->execute([...$p, strtoupper(trim($q))]);
+        $out = [];
+        foreach ($st->fetchAll() as $r) {
+            $i = json_decode((string)$r['info_json'], true) ?: [];
+            $out[] = [
+                'id' => $r['id'], 'name' => $r['name'], 'org' => $r['org'], 'email' => $r['email'],
+                'city' => $i['city'] ?? '', 'registrant' => (bool)$r['is_registrant'],
+                'entityType' => $i['registrant']['entityType'] ?? null,
+            ];
+        }
+        return $out;
+    }
+
     public function contact(string $id): ?array
     {
         $st = $this->db->prepare('SELECT info_json FROM contacts WHERE id = ?');

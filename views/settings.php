@@ -77,8 +77,9 @@ $help = [
   <textarea name="def_ns" placeholder="ns1.pensareweb.it 192.0.2.10&#10;ns2.pensareweb.it 192.0.2.11"><?= h($def['ns']) ?></textarea>
   <p class="help">Glue IP solo se il nameserver sta sotto il dominio che registri; per i vostri nameserver su un altro dominio basta il nome.</p>
   <div class="row">
-    <div><label>Admin predefinito (ID)</label><input type="text" name="def_admin" value="<?= h($def['admin']) ?>"></div>
-    <div><label>Tech predefiniti (ID, uno per riga, max 6)</label><textarea name="def_techs" style="min-height:60px"><?= h($def['techs']) ?></textarea></div>
+    <div><label>Admin predefinito (ID)</label><input type="text" name="def_admin" value="<?= h($def['admin']) ?>" data-contact-search="any" placeholder="ID, nome o organizzazione"></div>
+    <div><label>Tech predefiniti (ID, uno per riga, max 6)</label><textarea name="def_techs" id="def_techs" style="min-height:60px"><?= h($def['techs']) ?></textarea>
+      <input type="text" data-contact-search="any" data-append="def_techs" placeholder="Cerca e aggiungi un tech" style="margin-top:4px"></div>
   </div>
   <p class="help">Per i registranti persona fisica il Registro vuole l'admin uguale al registrante: nel modulo di registrazione c'è l'opzione «Usa il registrante come admin».
     Al salvataggio viene controllato che i contatti esistano presso il Registro.</p>

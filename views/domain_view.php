@@ -71,8 +71,9 @@ $op = can('operator') && $ours;
   <div class="card">
     <h2>Contatti admin / tech</h2>
     <?= $form('contacts') ?>
-      <label>Admin</label><input type="text" name="admin" id="adm_cur" value="<?= h($admins) ?>">
+      <label>Admin</label><input type="text" name="admin" id="adm_cur" value="<?= h($admins) ?>" data-contact-search="any" placeholder="ID, nome o organizzazione">
       <label>Tech (uno per riga, max 6)</label><textarea name="techs" id="tech_cur" style="min-height:60px"><?= h($techs) ?></textarea>
+      <input type="text" data-contact-search="any" data-append="tech_cur" placeholder="Cerca e aggiungi un tech" style="margin-top:4px">
         <p class="row">
           <?php if ($def['admin'] !== ''): ?><button type="button" class="sec small shrink" data-fill="adm_cur" data-value="<?= h($def['admin']) ?>">Admin predefinito</button><?php endif; ?>
           <?php if ($def['techs'] !== ''): ?><button type="button" class="sec small shrink" data-fill="tech_cur" data-value="<?= h($def['techs']) ?>">Tech predefiniti</button><?php endif; ?>
@@ -99,8 +100,8 @@ $op = can('operator') && $ours;
   <div class="card">
     <h2>Modifica registrante</h2>
     <?= $form('registrant') ?>
-      <label>Nuovo registrante (ID)</label><input type="text" name="registrant" required>
-      <label>Nuovo admin (opzionale)</label><input type="text" name="admin" placeholder="per persona fisica, se vuoto il Registro usa il registrante">
+      <label>Nuovo registrante</label><input type="text" name="registrant" required data-contact-search="registrant" placeholder="ID, nome, cognome o organizzazione">
+      <label>Nuovo admin (opzionale)</label><input type="text" name="admin" data-contact-search="any" placeholder="per persona fisica, se vuoto il Registro usa il registrante">
       <label>Nuovo AuthInfo (obbligatorio, diverso dall'attuale)</label>
       <div class="row"><input type="text" id="ai2" name="authinfo" placeholder="vuoto = generato"><button class="sec shrink" data-gen="ai2">Genera</button></div>
       <p class="help">Il nuovo registrante deve esistere con i dati di registrante completi; se non è persona fisica il consenso alla pubblicazione deve essere true.</p>

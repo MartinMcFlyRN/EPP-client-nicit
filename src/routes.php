@@ -603,6 +603,12 @@ return [
         render('contacts', ['q' => in('q'), 'rows' => repo()->contacts(in('q'))]);
     },
 
+    'contacts/search' => function () {
+        require_role('readonly');
+        header('Content-Type: application/json');
+        echo json_encode(repo()->searchContacts((string)in('q'), in('registrant') === '1'), JSON_UNESCAPED_UNICODE);
+    },
+
     'contacts/check' => function () {
         require_role('readonly');
         $results = null;
