@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
   totp_secret TEXT NULL,
   totp_enabled_at DATETIME NULL,
   totp_last_step BIGINT NOT NULL DEFAULT 0,
-  recovery_codes TEXT NULL
+  recovery_codes TEXT NULL,
+  lang VARCHAR(5) NOT NULL DEFAULT 'en'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS settings (

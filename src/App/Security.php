@@ -12,15 +12,15 @@ use PDO;
  */
 final class Security
 {
-    /** chiave => [etichetta, default, min, max]; 0 = disattivato dove ha senso */
+    /** chiave => [chiave di traduzione, default, min, max]; 0 = disattivato dove ha senso */
     public const FIELDS = [
-        'idle_timeout'       => ['Disconnessione dopo inattività (secondi)', 1800, 0, 604800],
-        'max_session'        => ['Durata massima della sessione (secondi)', 43200, 0, 2592000],
-        'min_password'       => ['Lunghezza minima password (caratteri)', 10, 8, 128],
-        'fail_window'        => ['Finestra tentativi falliti (secondi)', 900, 60, 86400],
-        'fail_per_ip'        => ['Tentativi falliti per IP', 20, 1, 10000],
-        'fail_per_user_ip'   => ['Tentativi falliti per utente e IP', 5, 1, 1000],
-        'remember_days'      => ['Ricorda il computer dopo il codice 2FA (giorni)', 0, 0, 365],
+        'idle_timeout'       => ['sec.idle_timeout', 1800, 0, 604800],
+        'max_session'        => ['sec.max_session', 43200, 0, 2592000],
+        'min_password'       => ['sec.min_password', 10, 8, 128],
+        'fail_window'        => ['sec.fail_window', 900, 60, 86400],
+        'fail_per_ip'        => ['sec.fail_per_ip', 20, 1, 10000],
+        'fail_per_user_ip'   => ['sec.fail_per_user_ip', 5, 1, 1000],
+        'remember_days'      => ['sec.remember_days', 0, 0, 365],
     ];
 
     public const COOKIE = 'NICEPP_TD';
@@ -50,7 +50,7 @@ final class Security
                 continue;
             }
             if (!self::validEntry($e)) {
-                throw new \InvalidArgumentException("IP o rete non valida: $e");
+                throw new \InvalidArgumentException(\t('err.bad_ip', ['ip' => $e]));
             }
             $out[] = $e;
         }

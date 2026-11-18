@@ -19,7 +19,7 @@ final class Response
         libxml_clear_errors();
         libxml_use_internal_errors($prev);
         if (!$ok) {
-            throw new EppException('Risposta EPP non valida (XML non parsabile): ' . mb_substr($raw, 0, 300));
+            throw new EppException(\t('err.epp_bad_xml', ['raw' => mb_substr($raw, 0, 300)]));
         }
         $this->xp = new \DOMXPath($this->dom);
         foreach ([

@@ -63,18 +63,18 @@ function settings(): Settings
  * Il valore salvato in DB (sezione Configurazione) ha precedenza su config.php.
  */
 const EPP_FIELDS = [
-    'url'             => ['URL server EPP', 'url'],
-    'clid'            => ['Username (clID)', 'text'],
-    'password'        => ['Password', 'secret'],
-    'tridPrefix'      => ['Prefisso clTRID', 'text'],
-    'source_ip'       => ['IP sorgente', 'ip'],
-    'ca_file'         => ['Bundle CA', 'file'],
-    'client_cert'     => ['Certificato client', 'file'],
-    'client_key'      => ['Chiave certificato client', 'file'],
-    'timeout'         => ['Timeout richiesta (s)', 'int'],
-    'connect_timeout' => ['Timeout connessione (s)', 'int'],
-    'idle_timeout'    => ['Relogin dopo inattività (s)', 'int'],
-    'dnssec'          => ['DNSSEC (secDNS-1.1)', 'bool'],
+    'url'             => ['set.epp.url', 'url'],
+    'clid'            => ['set.epp.clid', 'text'],
+    'password'        => ['set.epp.password', 'secret'],
+    'tridPrefix'      => ['set.epp.tridPrefix', 'text'],
+    'source_ip'       => ['set.epp.source_ip', 'ip'],
+    'ca_file'         => ['set.epp.ca_file', 'file'],
+    'client_cert'     => ['set.epp.client_cert', 'file'],
+    'client_key'      => ['set.epp.client_key', 'file'],
+    'timeout'         => ['set.epp.timeout', 'int'],
+    'connect_timeout' => ['set.epp.connect_timeout', 'int'],
+    'idle_timeout'    => ['set.epp.idle_timeout', 'int'],
+    'dnssec'          => ['set.epp.dnssec', 'bool'],
 ];
 
 /** Configurazione EPP effettiva: DB > (solo password) storage/epp-password > config.php */
@@ -143,7 +143,7 @@ function epp(bool $fresh = false): Client
         throw new \NicEpp\Epp\EppException($GLOBALS['EPP_CFG_ERROR']);
     }
     if ($e['url'] === '' || $e['clid'] === '') {
-        throw new \NicEpp\Epp\EppException('Parametri EPP non configurati: impostali in Configurazione');
+        throw new \NicEpp\Epp\EppException(t('err.epp_not_configured'));
     }
     $t = new Transport($e['url'], storage('epp-cookies.txt'), $e);
     $c = new Client($t, new Commands($e['tridPrefix'] ?? 'WEB', $e['dnssec']), [

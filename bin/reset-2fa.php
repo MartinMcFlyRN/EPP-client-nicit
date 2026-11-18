@@ -7,8 +7,8 @@ require dirname(__DIR__) . '/src/bootstrap.php';
 $user = $argv[1] ?? null;
 $u = $user ? repo()->userByName($user) : null;
 if (!$u) {
-    fwrite(STDERR, "Uso: php bin/reset-2fa.php <username> (utente esistente)\n");
+    fwrite(STDERR, t('cli.reset_2fa_usage') . "\n");
     exit(1);
 }
 repo()->resetTotp((int)$u['id']);
-echo "Doppio fattore di $user azzerato: al prossimo accesso dovrà configurarlo di nuovo.\n";
+echo t('cli.2fa_reset', ['user' => $user]) . "\n";

@@ -24,7 +24,7 @@ try {
 if (!\NicEpp\App\Security::ipMatches(client_ip(), $allowed)) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
-    exit('Accesso non consentito da questo indirizzo IP (' . client_ip() . ').');
+    exit(t('err.ip_denied', ['ip' => client_ip()]));
 }
 
 // scadenza della sessione per inattività e durata massima
@@ -35,9 +35,9 @@ if (!empty($_SESSION['uid'])) {
     $max = security()->get('max_session');
     $why = null;
     if ($idle > 0 && $now - (int)($_SESSION['seen_at'] ?? $now) > $idle) {
-        $why = 'Sei stato disconnesso per inattività';
+        $why = t('err.idle_logout');
     } elseif ($max > 0 && $now - (int)$_SESSION['login_at'] > $max) {
-        $why = 'La sessione ha raggiunto la durata massima: rientra';
+        $why = t('err.max_session');
     }
     if ($why) {
         $_SESSION = [];
@@ -53,10 +53,10 @@ $r = (string)($_GET['r'] ?? 'dashboard');
 
 if (!isset($routes[$r])) {
     http_response_code(404);
-    render('error', ['title' => 'Pagina non trovata', 'message' => $r]);
+    render('error', ['title' => t('err.not_found'), 'message' => $r]);
     exit;
 }
-$public = ['login', 'login/2fa', 'login/setup'];
+$public = ['login', 'login/2fa', 'login/setup', 'lang'];
 if (!in_array($r, $public, true)) {
     $cu = current_user();
     if (!$cu) {
@@ -89,7 +89,7 @@ try {
 } catch (\NicEpp\Epp\EppException $e) {
     $resp = $e->response;
     render('error', [
-        'title' => 'Errore EPP',
+        'title' => t('err.epp_title'),
         'message' => $resp ? $resp->errorText() : $e->getMessage(),
         'xml' => $resp?->pretty(),
     ]);

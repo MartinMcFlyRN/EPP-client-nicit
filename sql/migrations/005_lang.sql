@@ -1,0 +1,2 @@
+-- Lingua dell'interfaccia scelta da ogni utente (default inglese)
+ALTER TABLE users ADD COLUMN lang VARCHAR(5) NOT NULL DEFAULT 'en';

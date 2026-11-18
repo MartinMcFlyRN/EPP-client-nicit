@@ -1,6 +1,6 @@
 <?php $u = current_user(); $st = $u ? epp_state() : null; $cur = $_GET['r'] ?? 'dashboard'; ?>
 <!doctype html>
-<html lang="it">
+<html lang="<?= h(current_lang()) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,23 +13,23 @@
   <a class="brand" href="<?= url('dashboard') ?>"><?= h(cfg('app.name', 'EPP .it')) ?></a>
   <nav>
     <?php
-      $navs = ['dashboard' => 'Dashboard', 'domains' => 'Domini', 'domains/check' => 'Check', 'domains/transfer' => 'Trasferimenti',
-               'contacts' => 'Contatti', 'poll' => 'Poll', 'log' => 'Log'];
+      $navs = ['dashboard' => t('nav.dashboard'), 'domains' => t('nav.domains'), 'domains/check' => t('nav.check'),
+               'domains/transfer' => t('nav.transfers'), 'contacts' => t('nav.contacts'), 'poll' => t('nav.poll'), 'log' => t('nav.log')];
       $active = isset($navs[$cur]) ? $cur : explode('/', $cur)[0];
       foreach ($navs as $r => $l): ?>
-      <a href="<?= url($r) ?>" class="<?= $active === $r ? 'on' : '' ?>"><?= $l ?></a>
+      <a href="<?= url($r) ?>" class="<?= $active === $r ? 'on' : '' ?>"><?= h($l) ?></a>
     <?php endforeach; ?>
     <?php if (can('admin')): ?>
-      <a href="<?= url('console') ?>" class="<?= $cur === 'console' ? 'on' : '' ?>">Console XML</a>
-      <a href="<?= url('users') ?>" class="<?= $cur === 'users' ? 'on' : '' ?>">Utenti</a>
-      <a href="<?= url('settings') ?>" class="<?= $cur === 'settings' ? 'on' : '' ?>">Configurazione</a>
+      <a href="<?= url('console') ?>" class="<?= $cur === 'console' ? 'on' : '' ?>"><?= th('nav.console') ?></a>
+      <a href="<?= url('users') ?>" class="<?= $cur === 'users' ? 'on' : '' ?>"><?= th('nav.users') ?></a>
+      <a href="<?= url('settings') ?>" class="<?= $cur === 'settings' ? 'on' : '' ?>"><?= th('nav.settings') ?></a>
     <?php endif; ?>
   </nav>
   <div class="who">
-    <span class="sess <?= $st['logged_in'] ? 'up' : 'down' ?>" title="Sessione EPP">EPP <?= $st['logged_in'] ? 'connesso' : 'non connesso' ?></span>
-    <?php if ($st['msgq']): ?><a class="badge warn" href="<?= url('poll') ?>"><?= (int)$st['msgq'] ?> msg</a><?php endif; ?>
-    <a href="<?= url('account') ?>"><?= h($u['username']) ?> · <?= h($u['role']) ?></a>
-    <form method="post" action="<?= url('logout') ?>" class="inline"><?= csrf_field() ?><button class="link">Esci</button></form>
+    <span class="sess <?= $st['logged_in'] ? 'up' : 'down' ?>" title="<?= th('nav.epp_session') ?>"><?= th($st['logged_in'] ? 'nav.epp_connected' : 'nav.epp_disconnected') ?></span>
+    <?php if ($st['msgq']): ?><a class="badge warn" href="<?= url('poll') ?>"><?= th('nav.messages', ['n' => (int)$st['msgq']]) ?></a><?php endif; ?>
+    <a href="<?= url('account') ?>" title="<?= th('nav.account') ?>"><?= h($u['username']) ?> · <?= th('role.' . $u['role']) ?></a>
+    <form method="post" action="<?= url('logout') ?>" class="inline"><?= csrf_field() ?><button class="link"><?= th('nav.logout') ?></button></form>
   </div>
 </header>
 <?php endif; ?>
@@ -39,6 +39,7 @@
 <?php endforeach; ?>
 <?= $content ?>
 </main>
+<script>window.I18N = <?= json_encode(js_strings(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 <script>
 document.querySelectorAll('[data-gen]').forEach(b => b.addEventListener('click', e => {
   e.preventDefault();

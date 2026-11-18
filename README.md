@@ -16,6 +16,7 @@ Pensato per uso interno dello staff del registrar.
 - **Console XML** (solo admin): invia XML arbitrario sulla sessione autenticata.
 - **Utenti** con ruoli `readonly`, `operator`, `admin`. CSRF su tutti i POST.
 - **Sicurezza** in Configurazione: IP abilitati, scadenza della sessione per inattività e durata massima, lunghezza minima password, limiti ai tentativi falliti per IP e per utente+IP, «ricorda questo computer» dopo il 2FA.
+- **Interfaccia in inglese e italiano** (file in `lang/`): ogni utente sceglie la lingua in Account, inglese di default.
 - **Doppio fattore obbligatorio** (TOTP con QR code) per ogni utente, con codici di recupero e reset da parte di un admin.
 - **Configurazione da web** (solo admin): server, clID, password (cifrata nel DB), IP sorgente, certificati e timeout, con il pulsante «Salva e prova connessione».
 - **Elenchi domini e contatti ordinabili** cliccando sulle intestazioni di colonna.
@@ -125,6 +126,19 @@ In Configurazione → Sicurezza (campo vuoto = valore predefinito):
 - I computer ricordati usano un cookie HttpOnly con token casuale (salvato come hash); si revocano da Account, e vengono revocati al cambio password, all'azzeramento del 2FA e mettendo a 0 i giorni.
 
 **Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/004_security.sql`.
+
+### Lingue
+
+Tutti i testi (pagine, messaggi, errori, JavaScript e script da riga di comando) sono in `lang/en.php` e `lang/it.php`,
+con le stesse chiavi. I segnaposto come `{name}` vengono sostituiti a runtime; le chiavi che finiscono in `_html` possono contenere HTML.
+
+- **Preferenza utente:** in Account (clic sul proprio nome) ogni utente sceglie la lingua; i nuovi utenti partono in inglese
+  (o nella lingua scelta alla creazione). Nella pagina di login c'è il selettore per chi non è ancora entrato.
+- **Script da riga di comando:** usano l'inglese, oppure `NICEPP_LANG=it php bin/...`.
+- **Aggiungere una lingua:** copia `lang/en.php` in `lang/xx.php`, cambia `_name` e traduci i valori: compare da sola nei selettori.
+  `php bin/check-lang.php` verifica che ogni file abbia le stesse chiavi e gli stessi segnaposto dell'inglese.
+
+**Aggiornamento da una versione precedente:** esegui `mysql nicepp < sql/migrations/005_lang.sql`.
 
 ### Importare i domini esistenti
 

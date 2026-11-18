@@ -2,6 +2,7 @@
 // Cerca nella cache locale (ID, nome, organizzazione, email) e inserisce l'ID scelto.
 (function () {
   const cfg = window.CONTACT_SEARCH || {};
+  const L = window.I18N || {};
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
   function attach(input) {
@@ -20,15 +21,15 @@
 
     function render(q) {
       if (!items.length) {
-        box.innerHTML = '<div class="ac-empty">Nessun contatto trovato per «' + esc(q) + '» tra quelli salvati.' +
-          (cfg.createUrl ? ' <a href="' + esc(cfg.createUrl) + '" target="_blank">Crea contatto</a>' : '') +
-          (cfg.importUrl ? ' · <a href="' + esc(cfg.importUrl) + '" target="_blank">Importa dal Registro</a>' : '') + '</div>';
+        box.innerHTML = '<div class="ac-empty">' + esc((L.search_none || '').replace('{q}', q)) +
+          (cfg.createUrl ? ' <a href="' + esc(cfg.createUrl) + '" target="_blank">' + esc(L.create_contact) + '</a>' : '') +
+          (cfg.importUrl ? ' · <a href="' + esc(cfg.importUrl) + '" target="_blank">' + esc(L.import_registry) + '</a>' : '') + '</div>';
       } else {
         box.innerHTML = items.map((c, i) =>
           '<div class="ac-item' + (i === sel ? ' on' : '') + '" data-i="' + i + '">' +
           '<span class="mono">' + esc(c.id) + '</span> <strong>' + esc(c.name) + '</strong>' +
           (c.org && c.org !== c.name ? ' <span class="mute">' + esc(c.org) + '</span>' : '') +
-          (c.entityType === 1 ? ' <span class="badge">persona fisica</span>' : (c.registrant ? ' <span class="badge client">registrante</span>' : '')) +
+          (c.entityType === 1 ? ' <span class="badge">' + esc(L.individual) + '</span>' : (c.registrant ? ' <span class="badge client">' + esc(L.registrant) + '</span>' : '')) +
           '<div class="small mute">' + esc([c.city, c.email].filter(Boolean).join(' · ')) + '</div></div>').join('');
       }
       box.hidden = false;

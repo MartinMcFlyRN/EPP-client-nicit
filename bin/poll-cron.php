@@ -36,7 +36,7 @@ try {
     fwrite(STDERR, date('c') . ' ' . $e->getMessage() . "\n");
     exit(1);
 }
-echo date('c') . " poll: $n messaggi\n";
+echo date('c') . ' ' . t('cli.poll_done', ['n' => $n]) . "\n";
 if (($p = purge_logs_if_due()) !== null) {
-    echo date('c') . " log: cancellati $p record oltre la retention\n";
+    echo date('c') . ' ' . t('cli.log_purged', ['n' => $p]) . "\n";
 }

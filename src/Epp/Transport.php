@@ -28,10 +28,7 @@ final class Transport
         $who = function_exists('posix_geteuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? (string)posix_geteuid()) : get_current_user();
         $owner = @fileowner($target);
         $ownerName = ($owner !== false && function_exists('posix_getpwuid')) ? (posix_getpwuid($owner)['name'] ?? (string)$owner) : (string)$owner;
-        throw new EppException(sprintf(
-            '%s non è scrivibile dall\'utente PHP «%s» (proprietario: %s). Correggi con: chown -R %s %s',
-            $target, $who, $ownerName, $who, dirname($file)
-        ));
+        throw new EppException(\t('err.not_writable', ['path' => $target, 'user' => $who, 'owner' => $ownerName, 'dir' => dirname($file)]));
     }
 
     private function loadCookies(): array
@@ -47,7 +44,7 @@ final class Transport
         umask($old);
         if ($ok === false) {
             self::assertWritable($this->cookieFile);
-            throw new EppException('Impossibile salvare il cookie di sessione EPP in ' . $this->cookieFile);
+            throw new EppException(\t('err.cookie_save', ['path' => $this->cookieFile]));
         }
     }
 
@@ -122,7 +119,7 @@ final class Transport
         }
 
         if ($body === false) {
-            throw new EppException('Errore di connessione al server EPP: ' . $err);
+            throw new EppException(\t('err.connection', ['error' => $err]));
         }
         return [$http, (string)$body];
     }

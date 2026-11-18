@@ -47,16 +47,16 @@ $contactFromPost = function (): array {
             'regCode' => strtoupper(in('regCode')),
         ];
     }
-    foreach (['id' => 'ID contatto', 'name' => 'Nome', 'city' => 'Città', 'cc' => 'Nazione', 'email' => 'Email'] as $k => $l) {
+    foreach (['id' => t('con.id'), 'name' => t('con.name'), 'city' => t('con.city'), 'cc' => t('con.country'), 'email' => 'Email'] as $k => $l) {
         if ($c[$k] === '') {
-            throw new InvalidArgumentException("Campo obbligatorio mancante: $l");
+            throw new InvalidArgumentException(t('err.required', ['field' => $l]));
         }
     }
     if ($c['voice'] !== '' && !preg_match('/^\+\d{1,3}\.\d{1,14}$/', $c['voice'])) {
-        throw new InvalidArgumentException('Telefono non valido: usa il formato +39.0501234567');
+        throw new InvalidArgumentException(t('err.phone'));
     }
     if ($c['fax'] !== '' && !preg_match('/^\+\d{1,3}\.\d{1,14}$/', $c['fax'])) {
-        throw new InvalidArgumentException('Fax non valido: usa il formato +39.0501234567');
+        throw new InvalidArgumentException(t('err.fax'));
     }
     return $c;
 };
@@ -71,7 +71,7 @@ return [
             $ip = client_ip();
             security()->purgeFailures();
             if (($wait = security()->blockedFor($ip, $name)) > 0) {
-                flash('err', 'Troppi tentativi di accesso falliti: riprova tra ' . wait_text($wait));
+                flash('err', t('err.too_many_signin', ['wait' => wait_text($wait)]));
                 redirect('login');
             }
             $u = repo()->userByName($name);
@@ -90,10 +90,16 @@ return [
             }
             security()->recordFailure($ip, $name, 'password');
             usleep(500000);
-            flash('err', 'Credenziali non valide');
+            flash('err', t('err.bad_credentials'));
             redirect('login');
         }
         render('login', ['bare' => true]);
+    },
+
+    'lang' => function () {
+        // scelta della lingua dalla pagina di login (prima dell'accesso)
+        set_lang_cookie((string)in('l'));
+        redirect(current_user() ? 'account' : 'login');
     },
 
     'login/2fa' => function () {
@@ -111,7 +117,7 @@ return [
                     if (password_verify(\NicEpp\App\Totp::normalizeRecovery($code), $hsh)) {
                         unset($hashes[$i]);
                         repo()->setRecoveryCodes((int)$u['id'], $hashes);
-                        flash('ok', 'Accesso con codice di recupero: ne restano ' . count($hashes) . '. Rigenerali da «Account» se stanno finendo.');
+                        flash('ok', t('ok.recovery_used', ['n' => count($hashes)]));
                         $ok = true;
                         break;
                     }
@@ -145,7 +151,7 @@ return [
         if (is_post()) {
             $step = \NicEpp\App\Totp::verify($secret, (string)($_POST['code'] ?? ''));
             if ($step === null) {
-                second_factor_failed('Codice non valido: controlla che l\'orario del telefono sia sincronizzato e riprova');
+                second_factor_failed(t('err.setup_code'));
                 redirect('login/setup');
             }
             $codes = \NicEpp\App\Totp::recoveryCodes();
@@ -171,25 +177,36 @@ return [
 
     'account' => function () {
         $u = current_user();
+        if (is_post() && in('action') === 'lang') {
+            $lang = (string)in('lang');
+            if (!isset(languages()[$lang])) {
+                throw new InvalidArgumentException(t('err.bad_lang'));
+            }
+            repo()->setUserLang((int)$u['id'], $lang);
+            set_lang_cookie($lang);
+            $GLOBALS['__lang_user']['lang'] = $lang;
+            flash('ok', t('ok.lang_saved'));
+            redirect('account');
+        }
         if (is_post() && in('revoke') !== '') {
             in('revoke') === 'all' ? security()->revokeAllDevices((int)$u['id']) : security()->revokeDevice((int)$u['id'], (int)in('revoke'));
-            flash('ok', in('revoke') === 'all' ? 'Tutti i computer ricordati sono stati revocati' : 'Computer revocato');
+            flash('ok', t(in('revoke') === 'all' ? 'ok.devices_revoked' : 'ok.device_revoked'));
             redirect('account');
         }
         if (is_post()) {
             $step = \NicEpp\App\Totp::verify(settings()->decrypt((string)$u['totp_secret']), (string)($_POST['code'] ?? ''), (int)$u['totp_last_step']);
             if ($step === null) {
-                throw new InvalidArgumentException('Codice dell\'app non valido');
+                throw new InvalidArgumentException(t('err.app_code'));
             }
             repo()->setTotpStep((int)$u['id'], $step);
             if (in('action') === 'password') {
                 $pw = (string)($_POST['new_pw'] ?? '');
                 if (strlen($pw) < min_password() || $pw !== (string)($_POST['new_pw2'] ?? '')) {
-                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri e uguale nei due campi');
+                    throw new InvalidArgumentException(t('err.password_match', ['n' => min_password()]));
                 }
                 repo()->updateUser((int)$u['id'], $u['role'], (bool)$u['active'], $pw);
                 security()->revokeAllDevices((int)$u['id']);
-                flash('ok', 'Password cambiata (i computer ricordati sono stati revocati)');
+                flash('ok', t('ok.password_changed'));
                 redirect('account');
             }
             $codes = \NicEpp\App\Totp::recoveryCodes();
@@ -224,7 +241,7 @@ return [
     'session/hello' => function () {
         require_role('readonly');
         $r = epp()->hello();
-        render('xml', ['title' => 'Greeting del server', 'res' => $r]);
+        render('xml', ['title' => t('title.greeting'), 'res' => $r]);
     },
 
     'session/login' => function () {
@@ -237,7 +254,7 @@ return [
     'session/logout' => function () {
         require_role('operator');
         $r = epp()->logout();
-        $r ? flash_response($r, 'Logout EPP eseguito') : flash('ok', 'Nessuna sessione attiva');
+        $r ? flash_response($r, t('ok.epp_logout')) : flash('ok', t('ok.no_session'));
         redirect('dashboard');
     },
 
@@ -246,12 +263,12 @@ return [
         if (is_post()) {
             $new = (string)($_POST['new_pw'] ?? '');
             if ($new !== (string)($_POST['new_pw2'] ?? '') || strlen($new) < 8 || strlen($new) > 16) {
-                throw new InvalidArgumentException('Le password non coincidono o la lunghezza non è valida (8–16)');
+                throw new InvalidArgumentException(t('err.epp_password'));
             }
             $r = epp()->login($new);
             settings()->set('epp.password', $new, current_user()['username']);
             @unlink(storage('epp-password'));
-            flash_response($r, 'Password EPP cambiata presso il Registro e salvata in Configurazione');
+            flash_response($r, t('ok.epp_password'));
             redirect('dashboard');
         }
         render('password');
@@ -265,7 +282,7 @@ return [
             $by = current_user()['username'];
             $ips = \NicEpp\App\Security::parseIpList(in('allowed_ips'));
             if ($ips && !\NicEpp\App\Security::ipMatches(client_ip(), $ips)) {
-                throw new InvalidArgumentException('Il tuo IP attuale (' . client_ip() . ') non è nella lista: aggiungilo, altrimenti verresti chiuso fuori');
+                throw new InvalidArgumentException(t('err.ip_lockout', ['ip' => client_ip()]));
             }
             $vals = [];
             foreach (\NicEpp\App\Security::FIELDS as $k => [$label, $def, $min, $max]) {
@@ -275,13 +292,13 @@ return [
                     continue;
                 }
                 if (!ctype_digit($v) || (int)$v < $min || (int)$v > $max) {
-                    throw new InvalidArgumentException("«{$label}»: inserisci un numero tra $min e $max");
+                    throw new InvalidArgumentException(t('err.number_range', ['field' => t('sec.' . $k), 'min' => $min, 'max' => $max]));
                 }
                 $vals[$k] = (string)(int)$v;
             }
             $idle = (int)($vals['idle_timeout'] ?? \NicEpp\App\Security::FIELDS['idle_timeout'][1]);
             if ($idle > 0 && $idle < 60) {
-                throw new InvalidArgumentException('Disconnessione per inattività: almeno 60 secondi (o 0 per disattivarla)');
+                throw new InvalidArgumentException(t('err.idle_min'));
             }
             settings()->set('sec.allowed_ips', implode("\n", $ips), $by);
             foreach ($vals as $k => $v) {
@@ -290,45 +307,45 @@ return [
             if (($vals['remember_days'] ?? null) === '0') {
                 db()->exec('DELETE FROM trusted_devices'); // funzione disattivata: revoca tutti i computer ricordati
             }
-            flash('ok', 'Impostazioni di sicurezza salvate');
+            flash('ok', t('ok.security_saved'));
             redirect('settings');
         }
         if (is_post() && in('section') === 'logs') {
             $days = in('retention_days');
             if ($days !== '' && (!ctype_digit($days) || (int)$days < 1 || (int)$days > 3650)) {
-                throw new InvalidArgumentException('Retention: un numero di giorni tra 1 e 3650, oppure vuoto per non cancellare mai');
+                throw new InvalidArgumentException(t('err.retention'));
             }
             settings()->set('log.retention_days', $days === '' ? null : (string)(int)$days, current_user()['username']);
             $n = purge_logs_if_due(true);
-            flash('ok', $days === '' ? 'Retention disattivata: i log vengono conservati senza limite'
-                : "Retention impostata a $days giorni" . ($n ? " — cancellati $n log più vecchi" : ''));
+            flash('ok', $days === '' ? t('ok.retention_off')
+                : t('ok.retention_set', ['days' => $days]) . ($n ? ' ' . t('ok.retention_purged', ['n' => $n]) : ''));
             redirect('settings');
         }
         if (is_post() && in('section') === 'defaults') {
             $by = current_user()['username'];
             $ns = parse_ns_lines(in('def_ns'));
             if ($ns && (count($ns) < 2 || count($ns) > 6)) {
-                throw new InvalidArgumentException('Nameserver predefiniti: da 2 a 6 (oppure nessuno)');
+                throw new InvalidArgumentException(t('err.def_ns'));
             }
             $cpref = strtoupper(in('def_contact_prefix'));
             if ($cpref !== '' && !preg_match('/^[A-Z0-9-]{1,10}$/', $cpref)) {
-                throw new InvalidArgumentException('Prefisso ID contatti: da 1 a 10 caratteri tra lettere, numeri e trattino');
+                throw new InvalidArgumentException(t('err.contact_prefix'));
             }
             settings()->set('defaults.contact_prefix', $cpref, $by);
             $admin = strtoupper(in('def_admin'));
             $techs = split_list(strtoupper(in('def_techs')));
             foreach (array_merge($admin !== '' ? [$admin] : [], $techs) as $id) {
                 if (!preg_match('/^[A-Z0-9._-]{3,16}$/', $id)) {
-                    throw new InvalidArgumentException("ID contatto non valido: $id");
+                    throw new InvalidArgumentException(t('err.contact_id', ['id' => $id]));
                 }
             }
             if (count($techs) > 6) {
-                throw new InvalidArgumentException('Massimo 6 contatti tech');
+                throw new InvalidArgumentException(t('err.max_techs'));
             }
             settings()->set('defaults.ns', ns_to_lines($ns), $by);
             settings()->set('defaults.admin', $admin, $by);
             settings()->set('defaults.techs', implode("\n", $techs), $by);
-            flash('ok', 'Valori predefiniti salvati');
+            flash('ok', t('ok.defaults_saved'));
 
             // verifica (non bloccante) che i contatti esistano presso il Registro
             $ids = array_values(array_unique(array_merge($admin !== '' ? [$admin] : [], $techs)));
@@ -338,7 +355,7 @@ return [
                     if ($r->ok()) {
                         $missing = array_column(array_filter($r->contactCheck(), fn($c) => $c['avail']), 'id');
                         if ($missing) {
-                            flash('err', 'Attenzione: questi contatti non esistono ancora presso il Registro: ' . implode(', ', $missing));
+                            flash('err', t('err.contacts_missing', ['ids' => implode(', ', $missing)]));
                         }
                     }
                 } catch (\Throwable) {
@@ -372,8 +389,7 @@ return [
                         default => true,
                     };
                     if (!$ok) {
-                        throw new InvalidArgumentException("Valore non valido per «{$label}»"
-                            . ($type === 'file' ? ': il file non esiste o non è leggibile da PHP' : ''));
+                        throw new InvalidArgumentException(t($type === 'file' ? 'err.invalid_file' : 'err.invalid_value', ['field' => t('set.epp.' . $k)]));
                     }
                 }
                 $new[$k] = $v;
@@ -409,16 +425,16 @@ return [
                     @unlink(storage('epp-password'));
                 }
             }
-            flash('ok', 'Configurazione salvata' . ($changed ? ' — sessione EPP chiusa, il prossimo comando farà il login con i nuovi parametri' : ''));
+            flash('ok', t($changed ? 'ok.settings_saved_relogin' : 'ok.settings_saved'));
 
             if (in('test') === '1') {
                 try {
                     $c = epp(true);
                     $c->hello();
                     $r = $c->login();
-                    flash('ok', 'Test riuscito: connessione e login OK (' . $r->code() . ' ' . $r->msg() . ')');
+                    flash('ok', t('ok.test', ['code' => $r->code(), 'msg' => $r->msg()]));
                 } catch (\Throwable $e) {
-                    flash('err', 'Test fallito: ' . ($e instanceof \NicEpp\Epp\EppException && $e->response ? $e->response->errorText() : $e->getMessage()));
+                    flash('err', t('err.test', ['error' => $e instanceof \NicEpp\Epp\EppException && $e->response ? $e->response->errorText() : $e->getMessage()]));
                 }
             }
             redirect('settings');
@@ -480,19 +496,19 @@ return [
             $ds = dnssec_enabled() ? parse_ds_lines(in('ds')) : [];
             $auth = in('authinfo') ?: gen_authinfo();
             if ($name === '' || in('registrant') === '' || in('admin') === '' || !$techs) {
-                throw new InvalidArgumentException('Nome, registrante, admin e almeno un tech sono obbligatori');
+                throw new InvalidArgumentException(t('err.create_required'));
             }
             if (count($ns) < 2 || count($ns) > 6) {
-                throw new InvalidArgumentException('Servono da 2 a 6 nameserver');
+                throw new InvalidArgumentException(t('err.ns_count'));
             }
             if (count($techs) > 6) {
-                throw new InvalidArgumentException('Massimo 6 contatti tecnici');
+                throw new InvalidArgumentException(t('err.max_techs'));
             }
             $c = epp()->commands();
             $r = epp()->exec('domain:create', $name, fn() => $c->domainCreate(
                 $name, $ns, strtoupper(in('registrant')), strtoupper(in('admin')), $techs, $auth, $ds
             ));
-            if (flash_response($r, "Dominio $name registrato")) {
+            if (flash_response($r, t('ok.domain_created', ['name' => $name]))) {
                 $cd = $r->createData();
                 repo()->saveDomain(['name' => $name, 'registrant' => strtoupper(in('registrant')),
                     'status' => [], 'clID' => epp_cfg()['clid'], 'crDate' => $cd['crDate'], 'exDate' => $cd['exDate']]);
@@ -514,7 +530,7 @@ return [
         $name = normalize_domain(in('name'));
         [$cur, $d] = $domainInfo($name);
         if (!$d) {
-            throw \NicEpp\Epp\EppException::fromResponse('Impossibile leggere lo stato attuale', $cur);
+            throw \NicEpp\Epp\EppException::fromResponse(t('err.current_state'), $cur);
         }
         $c = epp()->commands();
         $act = in('action');
@@ -524,14 +540,14 @@ return [
             case 'ns':
                 $new = parse_ns_lines(in('ns'));
                 if (count($new) < 2 || count($new) > 6) {
-                    throw new InvalidArgumentException('Servono da 2 a 6 nameserver');
+                    throw new InvalidArgumentException(t('err.ns_count'));
                 }
                 $key = fn($n) => $n['host'] . '|' . implode(',', array_map('strtolower', $n['ips']));
                 $curK = array_combine(array_map($key, $d['ns']), $d['ns']);
                 $newK = array_combine(array_map($key, $new), $new);
                 $add['ns'] = array_values(array_diff_key($newK, $curK));
                 $rem['ns'] = array_values(array_diff_key($curK, $newK));
-                $msg = 'Nameserver aggiornati';
+                $msg = t('ok.ns_updated');
                 break;
 
             case 'contacts':
@@ -540,13 +556,13 @@ return [
                 $newT = split_list(strtoupper(in('techs')));
                 $newA = split_list(strtoupper(in('admin')));
                 if (count($newA) !== 1 || !$newT || count($newT) > 6) {
-                    throw new InvalidArgumentException('Serve esattamente un admin e da 1 a 6 tech');
+                    throw new InvalidArgumentException(t('err.contacts_count'));
                 }
                 foreach (array_diff($newA, $curA) as $i) { $add['contacts'][] = ['type' => 'admin', 'id' => $i]; }
                 foreach (array_diff($newT, $curT) as $i) { $add['contacts'][] = ['type' => 'tech', 'id' => $i]; }
                 foreach (array_diff($curA, $newA) as $i) { $rem['contacts'][] = ['type' => 'admin', 'id' => $i]; }
                 foreach (array_diff($curT, $newT) as $i) { $rem['contacts'][] = ['type' => 'tech', 'id' => $i]; }
-                $msg = 'Contatti aggiornati';
+                $msg = t('ok.contacts_updated');
                 break;
 
             case 'status':
@@ -554,19 +570,19 @@ return [
                 $have = array_values(array_intersect($d['status'], Commands::DOMAIN_CLIENT_STATUSES));
                 $add['status'] = array_values(array_diff($want, $have));
                 $rem['status'] = array_values(array_diff($have, $want));
-                $msg = 'Stati aggiornati';
+                $msg = t('ok.status_updated');
                 break;
 
             case 'authinfo':
                 $chg['authInfo'] = in('authinfo') ?: gen_authinfo();
-                $msg = 'AuthInfo cambiato';
+                $msg = t('ok.authinfo_changed');
                 break;
 
             case 'registrant':
                 $chg['registrant'] = strtoupper(in('registrant'));
                 $chg['authInfo'] = in('authinfo') ?: gen_authinfo(); // obbligatorio e diverso dal precedente
                 if ($chg['registrant'] === '') {
-                    throw new InvalidArgumentException('Indica il nuovo registrante');
+                    throw new InvalidArgumentException(t('err.new_registrant'));
                 }
                 if (in('admin') !== '') {
                     $old = array_column(array_filter($d['contacts'], fn($x) => $x['type'] === 'admin'), 'id');
@@ -576,12 +592,12 @@ return [
                         foreach ($old as $o) { $rem['contacts'][] = ['type' => 'admin', 'id' => $o]; }
                     }
                 }
-                $msg = 'Modifica del registrante eseguita';
+                $msg = t('ok.registrant_changed');
                 break;
 
             case 'dnssec':
                 if (!dnssec_enabled()) {
-                    throw new InvalidArgumentException('DNSSEC non abilitato: attivalo in Configurazione dopo l\'accreditamento');
+                    throw new InvalidArgumentException(t('err.dnssec_off'));
                 }
                 $new = parse_ds_lines(in('ds'));
                 $curK = array_combine(array_map('ds_key', $d['ds']), $d['ds']) ?: [];
@@ -596,17 +612,17 @@ return [
                 break;
 
             default:
-                throw new InvalidArgumentException('Azione non valida');
+                throw new InvalidArgumentException(t('err.bad_action'));
         }
 
         $nothing = empty(array_filter($add)) && empty(array_filter($rem)) && empty($chg) && empty(array_filter($sec));
         if ($nothing) {
-            flash('ok', 'Nessuna modifica da inviare');
+            flash('ok', t('ok.nothing_to_send'));
             redirect('domains/info', ['name' => $name]);
         }
         $r = epp()->exec('domain:update', $name, fn() => $c->domainUpdate($name, $add, $rem, $chg, $sec));
         if (flash_response($r, $msg) && isset($chg['authInfo'])) {
-            flash('ok', 'Nuovo AuthInfo: ' . $chg['authInfo']);
+            flash('ok', t('ok.new_authinfo', ['auth' => $chg['authInfo']]));
         }
         redirect('domains/info', ['name' => $name]);
     },
@@ -615,11 +631,11 @@ return [
         require_role('operator');
         $name = normalize_domain(in('name'));
         if (!is_post() || in('confirm') !== $name) {
-            throw new InvalidArgumentException('Per cancellare scrivi esattamente il nome del dominio');
+            throw new InvalidArgumentException(t('err.delete_confirm'));
         }
         $c = epp()->commands();
         $r = epp()->exec('domain:delete', $name, fn() => $c->domainDelete($name));
-        flash_response($r, "Cancellazione di $name richiesta (il dominio entra in pendingDelete/redemptionPeriod)");
+        flash_response($r, t('ok.delete_requested', ['name' => $name]));
         redirect('domains/info', ['name' => $name]);
     },
 
@@ -631,7 +647,7 @@ return [
         $name = normalize_domain(in('name'));
         $c = epp()->commands();
         $r = epp()->exec('domain:restore', $name, fn() => $c->domainRestore($name));
-        flash_response($r, "Restore di $name eseguito");
+        flash_response($r, t('ok.restored', ['name' => $name]));
         redirect('domains/info', ['name' => $name]);
     },
 
@@ -642,7 +658,7 @@ return [
         if (is_post()) {
             $op = in('op');
             if (!in_array($op, ['request', 'query', 'approve', 'reject', 'cancel'], true)) {
-                throw new InvalidArgumentException('Operazione non valida');
+                throw new InvalidArgumentException(t('err.bad_operation'));
             }
             if ($op !== 'query') {
                 require_role('operator');
@@ -653,17 +669,17 @@ return [
             $newReg = $trade ? strtoupper(in('new_registrant')) : null;
             $newAuth = $trade ? (in('new_authinfo') ?: gen_authinfo()) : null;
             if ($op === 'request' && $auth === '') {
-                throw new InvalidArgumentException('Per la richiesta di trasferimento serve l\'AuthInfo');
+                throw new InvalidArgumentException(t('err.transfer_authinfo'));
             }
             if ($trade && !$newReg) {
-                throw new InvalidArgumentException('Per il Transfer-Trade indica il nuovo registrante');
+                throw new InvalidArgumentException(t('err.trade_registrant'));
             }
             $c = epp()->commands();
             $res = epp()->exec("domain:transfer:$op", $name, fn() => $c->domainTransfer($op, $name, $auth, $newReg, $newAuth));
-            if (flash_response($res, "Transfer $op su $name")) {
+            if (flash_response($res, t('ok.transfer', ['op' => $op, 'name' => $name]))) {
                 $data = $res->transferData();
                 if ($newAuth) {
-                    flash('ok', 'Nuovo AuthInfo (trade): ' . $newAuth);
+                    flash('ok', t('ok.new_authinfo_trade', ['auth' => $newAuth]));
                 }
             }
         }
@@ -714,16 +730,16 @@ return [
             $suffix = strtoupper(in('id_suffix'));
             if ($suffix !== '') {
                 if (!preg_match('/^[A-Z0-9-]+$/', $suffix)) {
-                    throw new InvalidArgumentException('ID contatto: usa solo lettere, numeri e trattino');
+                    throw new InvalidArgumentException(t('err.id_chars'));
                 }
                 $_POST['id'] = $prefix . $suffix;
                 if (strlen($_POST['id']) < 3 || strlen($_POST['id']) > 16) {
-                    throw new InvalidArgumentException('ID contatto: prefisso + parte scelta devono stare tra 3 e 16 caratteri (ora ' . strlen($_POST['id']) . ')');
+                    throw new InvalidArgumentException(t('err.id_length', ['n' => strlen($_POST['id'])]));
                 }
             } else {
-                foreach (['name' => 'Nome', 'city' => 'Città', 'email' => 'Email'] as $k => $l) {
+                foreach (['name' => t('con.name'), 'city' => t('con.city'), 'email' => 'Email'] as $k => $l) {
                     if (in($k) === '') { // evita di generare un ID per un modulo incompleto
-                        throw new InvalidArgumentException("Campo obbligatorio mancante: $l");
+                        throw new InvalidArgumentException(t('err.required', ['field' => $l]));
                     }
                 }
                 $_POST['id'] = generate_contact_id($prefix);
@@ -732,7 +748,7 @@ return [
             $c['authInfo'] = gen_authinfo();
             $cmd = epp()->commands();
             $r = epp()->exec('contact:create', $c['id'], fn() => $cmd->contactCreate($c));
-            if (flash_response($r, "Contatto {$c['id']} creato")) {
+            if (flash_response($r, t('ok.contact_created', ['id' => $c['id']]))) {
                 repo()->saveContact($c);
                 redirect('contacts/info', ['id' => $c['id']]);
             }
@@ -749,7 +765,7 @@ return [
             $c = $contactFromPost();
             $cmd = epp()->commands();
             $r = epp()->exec('contact:update', $c['id'], fn() => $cmd->contactUpdate($c));
-            if (flash_response($r, "Contatto {$c['id']} aggiornato")) {
+            if (flash_response($r, t('ok.contact_updated', ['id' => $c['id']]))) {
                 redirect('contacts/info', ['id' => $c['id']]);
             }
             render('contact_form', ['mode' => 'edit', 'c' => $c, 'res' => $r]);
@@ -757,7 +773,7 @@ return [
         }
         [$r, $i] = $contactInfo(strtoupper(in('id')));
         if (!$i) {
-            throw \NicEpp\Epp\EppException::fromResponse('Contatto non leggibile', $r);
+            throw \NicEpp\Epp\EppException::fromResponse(t('con.unreadable'), $r);
         }
         render('contact_form', ['mode' => 'edit', 'c' => $i, 'res' => null]);
     },
@@ -770,7 +786,7 @@ return [
         $id = strtoupper(in('id'));
         $cmd = epp()->commands();
         $r = epp()->exec('contact:delete', $id, fn() => $cmd->contactDelete($id));
-        if (flash_response($r, "Contatto $id cancellato")) {
+        if (flash_response($r, t('ok.contact_deleted', ['id' => $id]))) {
             repo()->deleteContact($id);
             redirect('contacts');
         }
@@ -792,7 +808,7 @@ return [
         $r = epp()->pollReq();
         $q = $r->msgQ();
         if ($r->code() === 1300) {
-            flash('ok', 'Nessun messaggio in coda');
+            flash('ok', t('ok.queue_empty'));
         } elseif ($q) {
             repo()->savePoll($q['id'], $q['qDate'], $q['msg'], $r->raw());
             if (in('ack') === '1') {
@@ -801,7 +817,7 @@ return [
                     repo()->ackPoll($q['id'], current_user()['username']);
                 }
             }
-            flash('ok', "Messaggio {$q['id']}: {$q['msg']} (in coda: {$q['count']})");
+            flash('ok', t('ok.poll_message', ['id' => $q['id'], 'msg' => $q['msg'], 'count' => $q['count']]));
         } else {
             flash('err', $r->errorText());
         }
@@ -815,7 +831,7 @@ return [
         }
         $id = in('msg_id');
         $r = epp()->pollAck($id);
-        if (flash_response($r, "Messaggio $id confermato")) {
+        if (flash_response($r, t('ok.poll_acked', ['id' => $id]))) {
             repo()->ackPoll($id, current_user()['username']);
         }
         redirect('poll');
@@ -827,7 +843,7 @@ return [
         if (!$p) {
             redirect('poll');
         }
-        render('xml', ['title' => 'Messaggio poll ' . $p['msg_id'], 'res' => new Response($p['raw_xml'])]);
+        render('xml', ['title' => t('title.poll_message', ['id' => $p['msg_id']]), 'res' => new Response($p['raw_xml'])]);
     },
 
     // ============================================================ log / console / utenti
@@ -838,7 +854,7 @@ return [
         if (is_post()) {
             if (in('cancel') === '1') {
                 @unlink($file);
-                flash('ok', 'Import annullato');
+                flash('ok', t('ok.import_cancelled'));
                 redirect('import');
             }
             $text = in('names');
@@ -847,7 +863,7 @@ return [
             }
             $names = \NicEpp\App\Importer::parseNames($text);
             if (!$names) {
-                throw new InvalidArgumentException('Nessun nome .it trovato nel testo o nel file');
+                throw new InvalidArgumentException(t('err.import_none'));
             }
             importer()->start($names, in('contacts') === '1', in('skip_recent') === '1', current_user()['username']);
             redirect('import');
@@ -904,27 +920,27 @@ return [
             if (in('reset_2fa') !== '') {
                 repo()->resetTotp((int)in('reset_2fa'));
                 security()->revokeAllDevices((int)in('reset_2fa'));
-                flash('ok', 'Doppio fattore azzerato: l\'utente dovrà configurarlo di nuovo al prossimo accesso');
+                flash('ok', t('ok.2fa_reset'));
                 redirect('users');
             }
             if (!isset(ROLE_LEVEL[in('role')])) {
-                throw new InvalidArgumentException('Ruolo non valido');
+                throw new InvalidArgumentException(t('err.bad_role'));
             }
             if (in('id') !== '') {
                 if (($_POST['password'] ?? '') !== '' && strlen((string)$_POST['password']) < min_password()) {
-                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri');
+                    throw new InvalidArgumentException(t('err.password_min', ['n' => min_password()]));
                 }
                 repo()->updateUser((int)in('id'), in('role'), in('active') === '1', $_POST['password'] ?: null);
                 if (($_POST['password'] ?? '') !== '' || in('active') !== '1') {
                     security()->revokeAllDevices((int)in('id'));
                 }
-                flash('ok', 'Utente aggiornato');
+                flash('ok', t('ok.user_updated'));
             } else {
                 if (strlen((string)$_POST['password']) < min_password()) {
-                    throw new InvalidArgumentException('Password di almeno ' . min_password() . ' caratteri');
+                    throw new InvalidArgumentException(t('err.password_min', ['n' => min_password()]));
                 }
-                repo()->createUser(in('username'), (string)$_POST['password'], in('role'));
-                flash('ok', 'Utente creato');
+                repo()->createUser(in('username'), (string)$_POST['password'], in('role'), isset(languages()[in('lang')]) ? in('lang') : 'en');
+                flash('ok', t('ok.user_created'));
             }
             redirect('users');
         }

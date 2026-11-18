@@ -136,7 +136,7 @@ final class Importer
                         $this->repo->saveContact($c->contactInfo());
                         $j['contacts_ok']++;
                     } else {
-                        $this->err($j, "$name → contatto $id", $c->errorText());
+                        $this->err($j, \t('imp.err_contact', ['name' => $name, 'id' => $id]), $c->errorText());
                     }
                 }
             }

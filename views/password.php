@@ -1,10 +1,10 @@
-<h1>Cambio password EPP</h1>
+<h1><?= th('eppw.title') ?></h1>
 <div class="card" style="max-width:520px">
-  <p class="help">Esegue un nuovo login con &lt;newPW&gt;. Se va a buon fine la nuova password viene salvata (cifrata) in Configurazione e usata da qui in avanti. Per aggiornare solo la password salvata, senza cambiarla presso il Registro, usa <a href="<?= url('settings') ?>">Configurazione</a>.</p>
+  <p class="help"><?= t('eppw.help_html', ['link' => '<a href="' . url('settings') . '">' . th('nav.settings') . '</a>']) ?></p>
   <form method="post" action="<?= url('session/password') ?>">
     <?= csrf_field() ?>
-    <label>Nuova password</label><input type="password" name="new_pw" required minlength="8" maxlength="16">
-    <label>Ripeti</label><input type="password" name="new_pw2" required minlength="8" maxlength="16">
-    <p><button>Cambia password</button></p>
+    <label><?= th('eppw.new') ?></label><input type="password" name="new_pw" required minlength="8" maxlength="16">
+    <label><?= th('common.repeat') ?></label><input type="password" name="new_pw2" required minlength="8" maxlength="16">
+    <p><button><?= th('eppw.submit') ?></button></p>
   </form>
 </div>

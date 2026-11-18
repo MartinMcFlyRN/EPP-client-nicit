@@ -52,7 +52,7 @@ final class Client
     {
         if (@file_put_contents($this->cfg['state_file'], json_encode($s), LOCK_EX) === false) {
             Transport::assertWritable($this->cfg['state_file']);
-            throw new EppException('Impossibile scrivere ' . $this->cfg['state_file']);
+            throw new EppException(\t('err.write', ['path' => $this->cfg['state_file']]));
         }
     }
 
@@ -84,7 +84,7 @@ final class Client
         Transport::assertWritable($this->cfg['lock_file']);
         $this->lockFh = fopen($this->cfg['lock_file'], 'c');
         if (!$this->lockFh || !flock($this->lockFh, LOCK_EX)) {
-            throw new EppException('Impossibile acquisire il lock della sessione EPP');
+            throw new EppException(\t('err.lock'));
         }
     }
 
@@ -110,7 +110,7 @@ final class Client
         try {
             [$http, $body] = $this->t->post($xml);
             if ($http !== 200 && trim($body) === '') {
-                throw new EppException("HTTP $http dal server EPP", $http);
+                throw new EppException(\t('err.http', ['code' => $http]), $http);
             }
             $res = new Response($body);
             return $res;
@@ -148,7 +148,7 @@ final class Client
             $s['last'] = time();
             $this->saveState($s);
             if (!$r->ok()) {
-                throw EppException::fromResponse('Login EPP fallito', $r);
+                throw EppException::fromResponse(\t('err.login_failed'), $r);
             }
             return $r;
         } finally {
@@ -200,8 +200,7 @@ final class Client
                 if ($this->sessionLost($r)) {
                     $this->markLoggedOut();
                     throw EppException::fromResponse(
-                        'Il server non riconosce la sessione nemmeno subito dopo un login riuscito: il cookie di sessione '
-                        . ($this->t->hasSessionCookie() ? 'viene inviato ma non è accettato (proxy o bilanciatore in mezzo?)' : 'non è stato ricevuto o salvato'),
+                        \t($this->t->hasSessionCookie() ? 'err.session_cookie_rejected' : 'err.session_cookie_missing'),
                         $r
                     );
                 }

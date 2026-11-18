@@ -55,13 +55,18 @@ final class Repo
 
     public function users(): array
     {
-        return $this->db->query('SELECT id, username, role, active, created_at, last_login, totp_enabled_at FROM users ORDER BY username')->fetchAll();
+        return $this->db->query('SELECT id, username, role, active, created_at, last_login, totp_enabled_at, lang FROM users ORDER BY username')->fetchAll();
     }
 
-    public function createUser(string $u, string $pw, string $role): void
+    public function createUser(string $u, string $pw, string $role, string $lang = 'en'): void
     {
-        $this->db->prepare('INSERT INTO users (username, pass_hash, role, active, created_at) VALUES (?,?,?,1,?)')
-            ->execute([$u, password_hash($pw, PASSWORD_DEFAULT), $role, $this->now()]);
+        $this->db->prepare('INSERT INTO users (username, pass_hash, role, active, created_at, lang) VALUES (?,?,?,1,?,?)')
+            ->execute([$u, password_hash($pw, PASSWORD_DEFAULT), $role, $this->now(), $lang]);
+    }
+
+    public function setUserLang(int $id, string $lang): void
+    {
+        $this->db->prepare('UPDATE users SET lang = ? WHERE id = ?')->execute([$lang, $id]);
     }
 
     public function updateUser(int $id, string $role, bool $active, ?string $pw): void

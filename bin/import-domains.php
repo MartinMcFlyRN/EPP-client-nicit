@@ -26,21 +26,21 @@ $imp = importer();
 if (isset($opts['resume'])) {
     $job = $imp->job();
     if (!$job || $job['finished_at']) {
-        fwrite(STDERR, "Nessun import da riprendere\n");
+        fwrite(STDERR, t('cli.no_import') . "\n");
         exit(1);
     }
 } else {
     if (!$file || !is_readable($file)) {
-        fwrite(STDERR, "Uso: php bin/import-domains.php elenco.csv [--no-contacts] [--skip-recent] [--sleep=200] | --resume\n");
+        fwrite(STDERR, t('cli.import_usage') . "\n");
         exit(1);
     }
     $names = Importer::parseNames((string)file_get_contents($file));
     if (!$names) {
-        fwrite(STDERR, "Nessun nome .it trovato in $file\n");
+        fwrite(STDERR, t('cli.no_names', ['file' => $file]) . "\n");
         exit(1);
     }
     $job = $imp->start($names, !isset($opts['no-contacts']), isset($opts['skip-recent']), 'cli');
-    echo count($names) . " domini da importare\n";
+    echo t('cli.to_import', ['n' => count($names)]) . "\n";
 }
 
 $total = count($job['names']);
@@ -49,15 +49,15 @@ while (true) {
         fprintf(STDOUT, "\r[%d/%d] %-60s", $j['pos'], $total, $name);
     });
     if (!empty($job['last_error'])) {
-        echo "\nInterrotto: {$job['last_error']}\nRiprendi con: php bin/import-domains.php --resume\n";
+        echo "\n" . t('cli.interrupted', ['error' => $job['last_error']]) . "\n";
         exit(2);
     }
     if ($job['finished_at']) {
         break;
     }
 }
-printf("\nFatto: %d domini importati (%d di altri registrar, %d saltati), %d contatti, %d errori\n",
-    $job['ok'], $job['foreign'], $job['skipped'], $job['contacts_ok'], count($job['errors']));
+echo "\n" . t('cli.import_done', ['ok' => $job['ok'], 'foreign' => $job['foreign'], 'skipped' => $job['skipped'],
+    'contacts' => $job['contacts_ok'], 'errors' => count($job['errors'])]) . "\n";
 foreach ($job['errors'] as $e) {
     echo "  ERR {$e['what']}: {$e['msg']}\n";
 }

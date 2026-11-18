@@ -54,7 +54,9 @@ function current_user(): ?array
         return $u = null;
     }
     $r = repo()->userById((int)$_SESSION['uid']);
-    return $u = ($r && $r['active']) ? $r : null;
+    $u = ($r && $r['active']) ? $r : null;
+    $GLOBALS['__lang_user'] = $u;
+    return $u;
 }
 
 const ROLE_LEVEL = ['readonly' => 1, 'operator' => 2, 'admin' => 3];
@@ -72,7 +74,7 @@ function require_role(string $role): void
     }
     if (!can($role)) {
         http_response_code(403);
-        render('error', ['title' => 'Accesso negato', 'message' => 'Il tuo ruolo non permette questa operazione.']);
+        render('error', ['title' => t('err.forbidden_title'), 'message' => t('err.forbidden')]);
         exit;
     }
 }
@@ -91,7 +93,7 @@ function csrf_check(): void
 {
     if (!hash_equals($_SESSION['csrf'] ?? '', (string)($_POST['_csrf'] ?? ''))) {
         http_response_code(400);
-        exit('Token CSRF non valido. Ricarica la pagina.');
+        exit(t('err.csrf'));
     }
 }
 
@@ -169,7 +171,7 @@ function parse_ds_lines(string $s): array
             $out[] = ['keyTag' => (int)$m[1], 'alg' => (int)$m[2], 'digestType' => (int)$m[3],
                       'digest' => strtoupper(preg_replace('/\s+/', '', $m[4]))];
         } else {
-            throw new InvalidArgumentException('Record DS non valido: ' . $line);
+            throw new InvalidArgumentException(t('err.ds', ['line' => $line]));
         }
     }
     return $out;
@@ -200,15 +202,15 @@ function gen_authinfo(int $len = 16): string
     return str_shuffle($pw);
 }
 
-const ENTITY_TYPES = [
-    1 => '1 — Persona fisica (italiana o estera)',
-    2 => '2 — Società / impresa',
-    3 => '3 — Libero professionista / ditta individuale / ordine professionale',
-    4 => '4 — Ente no-profit',
-    5 => '5 — Ente pubblico',
-    6 => '6 — Altri soggetti',
-    7 => '7 — Soggetto estero equiparato ai precedenti (non persona fisica)',
-];
+/** Tipi di soggetto del registrante (entityType 1–7), nella lingua corrente. */
+function entity_types(): array
+{
+    $out = [];
+    foreach (range(1, 7) as $n) {
+        $out[$n] = t('entity.' . $n);
+    }
+    return $out;
+}
 
 function fmt_date(?string $d): string
 {
@@ -216,7 +218,7 @@ function fmt_date(?string $d): string
         return '';
     }
     $t = strtotime($d);
-    return $t ? date('d/m/Y H:i', $t) : $d;
+    return $t ? date(t('fmt.datetime'), $t) : $d;
 }
 
 function status_badge(string $s): string
@@ -251,7 +253,7 @@ function pending_user(): array
     $u = $id ? repo()->userById($id) : null;
     if (!$u || !$u['active'] || time() - (int)($_SESSION['pre_at'] ?? 0) > 300) {
         unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
-        flash('err', 'Sessione di accesso scaduta, rientra');
+        flash('err', t('err.signin_expired'));
         redirect('login');
     }
     return $u;
@@ -263,20 +265,21 @@ function finish_login(array $u, string $to = 'dashboard'): never
     unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries']);
     $_SESSION['uid'] = (int)$u['id'];
     $_SESSION['login_at'] = $_SESSION['seen_at'] = time();
+    set_lang_cookie((string)($u['lang'] ?? 'en'));
     security()->clearFailures(client_ip(), $u['username']);
     repo()->touchLogin((int)$u['id']);
     redirect($to);
 }
 
 /** Dopo 5 codici errati si torna alla password; ogni errore conta anche nei limiti di Sicurezza. */
-function second_factor_failed(string $msg = 'Codice non valido'): void
+function second_factor_failed(?string $msg = null): void
 {
     $u = repo()->userById((int)($_SESSION['pre_uid'] ?? 0));
     if ($u) {
         security()->recordFailure(client_ip(), $u['username'], '2fa');
         if (($wait = security()->blockedFor(client_ip(), $u['username'])) > 0) {
             unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
-            flash('err', 'Troppi tentativi falliti: riprova tra ' . wait_text($wait));
+            flash('err', t('err.too_many_signin', ['wait' => wait_text($wait)]));
             redirect('login');
         }
     }
@@ -284,10 +287,10 @@ function second_factor_failed(string $msg = 'Codice non valido'): void
     $_SESSION['pre_tries'] = (int)($_SESSION['pre_tries'] ?? 0) + 1;
     if ($_SESSION['pre_tries'] >= 5) {
         unset($_SESSION['pre_uid'], $_SESSION['pre_at'], $_SESSION['pre_tries'], $_SESSION['setup_secret']);
-        flash('err', 'Troppi codici errati, rientra con la password');
+        flash('err', t('err.too_many_codes'));
         redirect('login');
     }
-    flash('err', $msg);
+    flash('err', $msg ?? t('err.bad_code'));
 }
 
 // ---------------------------------------------------------------- valori predefiniti (Configurazione)
@@ -312,8 +315,8 @@ function fill_button(string $target, string $value, string $label): string
         return '<button type="button" class="sec small shrink" data-fill="' . h($target) . '" data-value="' . h($value) . '"'
             . ' title="' . h(str_replace("\n", ', ', $value)) . '">' . h($label) . '</button>';
     }
-    $hint = can('admin') ? ' <a class="small" href="' . url('settings') . '#defaults">imposta</a>' : '';
-    return '<span class="shrink small mute"><button type="button" class="sec small" disabled title="Non impostato in Configurazione">'
+    $hint = can('admin') ? ' <a class="small" href="' . url('settings') . '#defaults">' . th('def.set') . '</a>' : '';
+    return '<span class="shrink small mute"><button type="button" class="sec small" disabled title="' . th('def.not_set') . '">'
         . h($label) . '</button>' . $hint . '</span>';
 }
 
@@ -352,7 +355,7 @@ function generate_contact_id(string $prefix): string
         }
         $r = epp()->contactCheck(array_keys($cand));
         if (!$r->ok()) {
-            throw \NicEpp\Epp\EppException::fromResponse('Verifica disponibilità ID non riuscita', $r);
+            throw \NicEpp\Epp\EppException::fromResponse(t('err.id_check'), $r);
         }
         foreach ($r->contactCheck() as $c) {
             if ($c['avail']) {
@@ -360,7 +363,7 @@ function generate_contact_id(string $prefix): string
             }
         }
     }
-    throw new InvalidArgumentException('Impossibile generare un ID libero: riprova o inseriscilo a mano');
+    throw new InvalidArgumentException(t('err.id_generate'));
 }
 
 /** Intestazione di colonna cliccabile: alterna crescente/decrescente e mantiene gli altri filtri. */
@@ -419,7 +422,7 @@ function min_password(): int
 
 function wait_text(int $s): string
 {
-    return $s >= 120 ? ceil($s / 60) . ' minuti' : $s . ' secondi';
+    return $s >= 120 ? t('time.minutes', ['n' => (int)ceil($s / 60)]) : t('time.seconds', ['n' => $s]);
 }
 
 /** Cookie "ricorda questo computer" (HttpOnly, SameSite Strict, Secure se HTTPS). */
@@ -429,4 +432,94 @@ function set_trust_cookie(string $value, int $expires): void
         'expires' => $expires, 'path' => '/', 'httponly' => true, 'samesite' => 'Strict',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
     ]);
+}
+
+// ---------------------------------------------------------------- lingue (lang/*.php)
+
+/** Lingue disponibili: codice => nome (chiave "_name" di ogni file in lang/). */
+function languages(): array
+{
+    static $l = null;
+    if ($l === null) {
+        $l = [];
+        foreach (glob(APP_ROOT . '/lang/*.php') as $f) {
+            $code = basename($f, '.php');
+            $l[$code] = (lang_strings($code)['_name'] ?? $code);
+        }
+        ksort($l);
+    }
+    return $l;
+}
+
+function lang_strings(string $code): array
+{
+    static $cache = [];
+    if (!isset($cache[$code])) {
+        $f = APP_ROOT . '/lang/' . basename($code) . '.php';
+        $cache[$code] = is_file($f) ? (array)require $f : [];
+    }
+    return $cache[$code];
+}
+
+/** Lingua corrente: preferenza dell'utente, poi cookie (pagine di login), poi NICEPP_LANG da CLI, infine inglese. */
+function current_lang(): string
+{
+    $avail = languages();
+    $cands = [];
+    if (PHP_SAPI === 'cli') {
+        $cands[] = (string)getenv('NICEPP_LANG');
+    } else {
+        $u = $GLOBALS['__lang_user'] ?? null;
+        if ($u && !empty($u['lang'])) {
+            $cands[] = $u['lang'];
+        }
+        $cands[] = (string)($_COOKIE['nicepp_lang'] ?? '');
+    }
+    foreach ($cands as $c) {
+        if ($c !== '' && isset($avail[$c])) {
+            return $c;
+        }
+    }
+    return 'en';
+}
+
+/**
+ * Traduzione: t('domain.saved', ['name' => 'x.it']) sostituisce {name}.
+ * Se la chiave manca nella lingua corrente si usa l'inglese, poi la chiave stessa.
+ */
+function t(string $key, array $vars = []): string
+{
+    $s = lang_strings(current_lang())[$key] ?? lang_strings('en')[$key] ?? $key;
+    if ($vars) {
+        $s = strtr($s, array_combine(array_map(fn($k) => '{' . $k . '}', array_keys($vars)), array_map('strval', $vars)));
+    }
+    return $s;
+}
+
+/** Traduzione già escapata per HTML. */
+function th(string $key, array $vars = []): string
+{
+    return h(t($key, $vars));
+}
+
+/** Stringhe per JavaScript: tutte le chiavi che iniziano con "js.". */
+function js_strings(): array
+{
+    $out = [];
+    foreach (lang_strings('en') + lang_strings(current_lang()) as $k => $_) {
+        if (str_starts_with($k, 'js.')) {
+            $out[substr($k, 3)] = t($k);
+        }
+    }
+    return $out;
+}
+
+/** Ricorda la lingua anche per le pagine prima del login. */
+function set_lang_cookie(string $lang): void
+{
+    if (PHP_SAPI !== 'cli' && isset(languages()[$lang])) {
+        setcookie('nicepp_lang', $lang, ['expires' => time() + 365 * 86400, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off']);
+        $_COOKIE['nicepp_lang'] = $lang;
+    }
 }

@@ -87,7 +87,7 @@ final class Settings
         }
         $k = base64_decode(trim((string)file_get_contents($this->keyFile)), true);
         if ($k === false || strlen($k) !== 32) {
-            throw new \RuntimeException('Chiave di cifratura non valida: ' . $this->keyFile);
+            throw new \RuntimeException(\t('err.bad_key', ['path' => $this->keyFile]));
         }
         return $k;
     }
@@ -117,7 +117,7 @@ final class Settings
             $plain = openssl_decrypt(substr($raw, 28), 'aes-256-gcm', $k, OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16));
         }
         if ($plain === false) {
-            throw new \RuntimeException('Impossibile decifrare la password EPP salvata: chiave cambiata? Reinseriscila da Configurazione.');
+            throw new \RuntimeException(\t('err.decrypt'));
         }
         return $plain;
     }
