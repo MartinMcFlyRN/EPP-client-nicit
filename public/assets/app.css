@@ -42,3 +42,6 @@ details summary{cursor:pointer;color:var(--acc);margin:6px 0}
 .ac-item{padding:7px 10px;cursor:pointer;border-top:1px solid var(--line)}.ac-item:first-child{border-top:0}
 .ac-item.on,.ac-item:hover{background:#eef3fb}
 .ac-empty{padding:10px;font-size:13px;color:var(--mute)}
+@keyframes fillflash{from{background:#fdf6d8;border-color:#e0c25a}to{background:#fff}}
+.filled{animation:fillflash 1.2s ease-out}
+button[disabled]{opacity:.5;cursor:not-allowed}

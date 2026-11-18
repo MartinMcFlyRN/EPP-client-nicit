@@ -11,14 +11,17 @@
       data-contact-search="any" placeholder="ID, nome, cognome o organizzazione"></div>
   </div>
   <p class="help" id="reg_info"></p>
+  <?php $def = epp_defaults(); ?>
+  <p class="row" style="margin:0"><?= fill_button('adm', $def['admin'], 'Admin predefinito') ?></p>
   <label style="font-weight:400"><input type="checkbox" name="admin_is_registrant" value="1" id="adm_reg" <?= !empty($f['admin_is_registrant']) ? 'checked' : '' ?>>
     Usa il registrante come admin (necessario se il registrante è una persona fisica)</label>
   <label>Tech (ID, uno per riga, max 6)</label>
   <textarea name="techs" id="techs" style="min-height:50px"><?= h($f['techs'] ?? '') ?></textarea>
   <input type="text" data-contact-search="any" data-append="techs" placeholder="Cerca e aggiungi un tech per nome o organizzazione" style="margin-top:4px">
+  <p class="row" style="margin:4px 0 0"><?= fill_button('techs', $def['techs'], 'Tech predefiniti') ?></p>
   <label>Nameserver (2–6, uno per riga: host [ip...])</label>
-  <textarea name="ns" placeholder="ns1.esempio.it 192.0.2.1&#10;ns2.provider.net"><?= h($f['ns'] ?? '') ?></textarea>
-  <?php if (epp_defaults()['ns'] === '' && can('admin')): ?><p class="help">Puoi impostare i nameserver predefiniti in <a href="<?= url('settings') ?>#defaults">Configurazione</a>.</p><?php endif; ?>
+  <textarea name="ns" id="ns_new" placeholder="ns1.esempio.it 192.0.2.1&#10;ns2.provider.net"><?= h($f['ns'] ?? '') ?></textarea>
+  <p class="row" style="margin:4px 0 0"><?= fill_button('ns_new', $def['ns'], 'Usa DNS predefiniti') ?></p>
   <p class="help">I DNS devono essere già configurati correttamente: il Registro esegue i controlli tecnici al momento della create.</p>
   <?php if (dnssec_enabled()): ?>
   <label>Record DS (opzionale)</label>

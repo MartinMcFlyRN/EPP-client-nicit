@@ -61,10 +61,8 @@ $op = can('operator') && $ours;
     <h2>Nameserver</h2>
     <?= $form('ns') ?>
       <textarea name="ns" id="ns_cur"><?= h(ns_to_lines($d['ns'])) ?></textarea>
-      <?php if ($def['ns'] !== ''): ?>
-        <p class="row"><button type="button" class="sec small shrink" data-fill="ns_cur" data-value="<?= h($def['ns']) ?>">Usa DNS predefiniti</button>
-          <button type="button" class="sec small shrink" data-fill="ns_cur" data-value="<?= h(ns_to_lines($d['ns'])) ?>">Ripristina attuali</button></p>
-      <?php endif; ?>
+      <p class="row"><?= fill_button('ns_cur', $def['ns'], 'Usa DNS predefiniti') ?>
+        <?= fill_button('ns_cur', ns_to_lines($d['ns']), 'Ripristina attuali') ?></p>
       <p class="help">Una riga per host: <code>ns1.esempio.it 192.0.2.1 2001:db8::1</code>. Glue IP solo per host sotto il dominio. Da 2 a 6 NS. Il Registro verifica la configurazione DNS.</p>
       <button>Aggiorna NS</button></form>
   </div>
@@ -75,9 +73,9 @@ $op = can('operator') && $ours;
       <label>Tech (uno per riga, max 6)</label><textarea name="techs" id="tech_cur" style="min-height:60px"><?= h($techs) ?></textarea>
       <input type="text" data-contact-search="any" data-append="tech_cur" placeholder="Cerca e aggiungi un tech" style="margin-top:4px">
         <p class="row">
-          <?php if ($def['admin'] !== ''): ?><button type="button" class="sec small shrink" data-fill="adm_cur" data-value="<?= h($def['admin']) ?>">Admin predefinito</button><?php endif; ?>
-          <?php if ($def['techs'] !== ''): ?><button type="button" class="sec small shrink" data-fill="tech_cur" data-value="<?= h($def['techs']) ?>">Tech predefiniti</button><?php endif; ?>
-          <button type="button" class="sec small shrink" data-fill="adm_cur" data-value="<?= h($d['registrant']) ?>">Admin = registrante</button>
+          <?= fill_button('adm_cur', $def['admin'], 'Admin predefinito') ?>
+          <?= fill_button('tech_cur', $def['techs'], 'Tech predefiniti') ?>
+          <?= fill_button('adm_cur', $d['registrant'], 'Admin = registrante') ?>
         </p>
       <p><button>Aggiorna contatti</button></p></form>
   </div>

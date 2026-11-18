@@ -51,7 +51,11 @@ document.querySelectorAll('[data-gen]').forEach(b => b.addEventListener('click',
 document.querySelectorAll('[data-toggle]').forEach(c => {
   const t = document.getElementById(c.dataset.toggle); const f = () => t.hidden = !c.checked; c.addEventListener('change', f); f();
 });
-document.querySelectorAll('[data-fill]').forEach(b => b.addEventListener('click', () => { document.getElementById(b.dataset.fill).value = b.dataset.value; }));
+document.querySelectorAll('[data-fill]').forEach(b => b.addEventListener('click', () => {
+  const t = document.getElementById(b.dataset.fill);
+  if (t.disabled) { const c = document.getElementById('adm_reg'); if (c && t.id === 'adm') { c.checked = false; c.dispatchEvent(new Event('change')); } }
+  t.value = b.dataset.value; t.classList.remove('filled'); void t.offsetWidth; t.classList.add('filled'); t.focus();
+}));
 document.querySelectorAll('form[data-confirm]').forEach(f => f.addEventListener('submit', e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); }));
 </script>
 <?php if ($u): ?>

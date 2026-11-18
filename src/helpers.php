@@ -290,3 +290,18 @@ function epp_defaults(): array
         'techs' => (string)settings()->get('defaults.techs', ''),
     ];
 }
+
+/**
+ * Pulsante che riempie un campo con un valore predefinito (gestito da data-fill in layout.php).
+ * Se il valore non è impostato il pulsante è disattivato e rimanda alla Configurazione.
+ */
+function fill_button(string $target, string $value, string $label): string
+{
+    if (trim($value) !== '') {
+        return '<button type="button" class="sec small shrink" data-fill="' . h($target) . '" data-value="' . h($value) . '"'
+            . ' title="' . h(str_replace("\n", ', ', $value)) . '">' . h($label) . '</button>';
+    }
+    $hint = can('admin') ? ' <a class="small" href="' . url('settings') . '#defaults">imposta</a>' : '';
+    return '<span class="shrink small mute"><button type="button" class="sec small" disabled title="Non impostato in Configurazione">'
+        . h($label) . '</button>' . $hint . '</span>';
+}
